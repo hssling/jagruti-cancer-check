@@ -1,8 +1,8 @@
-"""Claude's two jobs: read a free-text story into questionnaire answers, and explain the result.
+"""The AI model's two jobs: read a free-text story into questionnaire answers, and explain the result.
 
 Neither job decides a level of concern; rules.py does that.
 
-Claude is reached either through OpenRouter (OPENROUTER_API_KEY) or directly through the
+The model is reached either through OpenRouter (free models by default) (OPENROUTER_API_KEY) or directly through the
 Anthropic API (ANTHROPIC_API_KEY). Both backends expose the same two methods.
 """
 import json
@@ -14,7 +14,16 @@ from questionnaire import FIELDS, coerce
 from rules import TIERS
 
 LANGUAGES = ["English", "Kannada", "Hindi", "Telugu", "Tamil", "Marathi", "Malayalam", "Bengali"]
-OPENROUTER_DEFAULT_MODEL = "anthropic/claude-opus-5.5"
+
+# Free OpenRouter models, tried in this order: when one is busy or rate-limited, OpenRouter moves to the next.
+# Gemma leads because it writes Kannada and Hindi best; the Nemotron models are steadier but weaker in Indian scripts.
+FREE_MODELS = [
+    "google/gemma-4-31b-it:free",
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+]
+FREE_NOTE = ("Using free AI models: replies can take up to a minute, the models are sometimes busy, and they write "
+             "Kannada and other Indian languages less well than Claude. English is the most reliable.")
 
 
 class AIError(Exception):
@@ -22,21 +31,40 @@ class AIError(Exception):
 
 
 class OpenRouterBackend:
+    """Free models by default. Set OPENROUTER_MODEL (e.g. anthropic/claude-haiku-5.5) to use one paid model instead."""
+
     def __init__(self, key, model=None):
-        self.model = model or OPENROUTER_DEFAULT_MODEL
-        self.label = f"OpenRouter · {self.model}"
         self.client = openai.OpenAI(api_key=key, base_url="https://openrouter.ai/api/v1",
                                     default_headers={"X-Title": "Jagruti Cancer Check"})
-        self.extra = {"reasoning": {"effort": "low"}}  # short, routine tasks: keep thinking light
+        self.free = not model or model.endswith(":free")
+        self.model = model or FREE_MODELS[0]
+        if self.free:
+            # Thinking off: on free reasoning models it used up the reply budget and cut answers short
+            self.extra = {"reasoning": {"enabled": False}}
+        else:
+            self.extra = {"reasoning": {"effort": "low"}}  # short, routine tasks: keep thinking light
+        if not model:
+            self.extra["models"] = FREE_MODELS  # OpenRouter's fallback list
+        self.label = "OpenRouter · free models" if not model else f"OpenRouter · {self.model}"
+
+    def _first_choice(self, resp):
+        # OpenRouter can return HTTP 200 with an error object and no choices (e.g. every free model busy)
+        if not getattr(resp, "choices", None):
+            err = getattr(resp, "error", None) or {}
+            msg = err.get("message") if isinstance(err, dict) else str(err)
+            raise AIError(f"The AI model could not answer: {msg or 'no reply'}. Try again in a minute.")
+        return resp.choices[0]
 
     def json(self, prompt, schema):
+        kw = {}
+        if not self.free:  # strict JSON schema is reliable on paid models; free models get prompt-only JSON
+            kw["response_format"] = {"type": "json_schema", "json_schema": {"name": "answers", "strict": True, "schema": schema}}
         resp = self.client.chat.completions.create(
             model=self.model, max_tokens=4000, extra_body=self.extra,
-            messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_schema", "json_schema": {"name": "answers", "strict": True, "schema": schema}})
-        choice = resp.choices[0]
+            messages=[{"role": "user", "content": prompt}], **kw)
+        choice = self._first_choice(resp)
         if choice.finish_reason == "content_filter":
-            raise AIError("Claude declined to read this text. Try rephrasing it.")
+            raise AIError("The AI model declined to read this text. Try rephrasing it.")
         return choice.message.content or ""
 
     def stream(self, prompt):
@@ -63,7 +91,7 @@ class AnthropicBackend:
             output_config={"effort": "low", "format": {"type": "json_schema", "schema": schema}},
             messages=[{"role": "user", "content": prompt}])
         if resp.stop_reason == "refusal":
-            raise AIError("Claude declined to read this text. Try rephrasing it.")
+            raise AIError("The AI declined to read this text. Try rephrasing it.")
         return next((b.text for b in resp.content if b.type == "text"), "")
 
     def stream(self, prompt):
@@ -72,7 +100,7 @@ class AnthropicBackend:
                 messages=[{"role": "user", "content": prompt}]) as s:
             yield from s.text_stream
             if s.get_final_message().stop_reason == "refusal":
-                yield "\n\n(Claude stopped this explanation. The result and advice above still apply.)"
+                yield "\n\n(The AI stopped this explanation. The result and advice above still apply.)"
 
 
 def make_client(openrouter_key=None, openrouter_model=None, anthropic_key=None):
@@ -89,14 +117,14 @@ def friendly(e):
     if isinstance(e, (anthropic.AuthenticationError, openai.AuthenticationError)):
         return "The API key is not valid. Check the key in the app's secrets."
     if isinstance(e, (anthropic.RateLimitError, openai.RateLimitError)):
-        return "Too many requests just now. Wait a minute and try again."
+        return "The AI models are busy or the daily free limit is used up. Wait a minute and try again."
     if isinstance(e, (anthropic.APIStatusError, openai.APIStatusError)):
         if e.status_code == 402:
             return "The OpenRouter account has run out of credits."
-        return f"Claude could not answer (error {e.status_code}). Try again in a moment."
+        return f"The AI model could not answer (error {e.status_code}). Try again in a moment."
     if isinstance(e, (anthropic.APIConnectionError, openai.APIConnectionError)):
-        return "Could not reach Claude. Check the internet connection."
-    return "Claude could not answer just now. Try again in a moment."
+        return "Could not reach the AI service. Check the internet connection."
+    return "The AI model could not answer just now. Try again in a moment."
 
 
 API_ERRORS = (anthropic.APIError, openai.APIError)
@@ -141,7 +169,7 @@ def _parse_json(raw):
                 return json.loads(raw[start:end + 1])
             except json.JSONDecodeError:
                 pass
-    raise AIError("Claude's answer could not be read. Press the button again.")
+    raise AIError("The AI's answer could not be read. Press the button again.")
 
 
 def read_story(client, text):
@@ -174,7 +202,7 @@ Description:
 
 
 def explain(client, result, d, language):
-    """Yields the explanation text as it streams. Claude gets only the engine's output, not the story."""
+    """Yields the explanation text as it streams. The model gets only the engine's output, not the story."""
     summary = {
         "overall_level": TIERS[result["overall"]]["label"],
         "age": d.get("age"), "sex": d.get("sex"),
@@ -206,4 +234,4 @@ Result:
         yield f"\n\n{friendly(e)}"
         return
     if not wrote:
-        yield "Claude returned an empty explanation. Press the button again. The result and advice above still apply."
+        yield "The AI returned an empty explanation. Press the button again. The result and advice above still apply."

@@ -1,7 +1,7 @@
 """Jagruti Cancer Check: a teaching prototype of a clinical AI agent for early cancer detection in India.
 
-Perceive (Claude reads a story) -> Confirm (the person checks the form) ->
-Reason (rules.py, no AI) -> Act (fixed advice; Claude explains it in the person's language).
+Perceive (an AI model reads a story) -> Confirm (the person checks the form) ->
+Reason (rules.py, no AI) -> Act (fixed advice; the AI explains it in the person's language).
 """
 import hashlib
 import json
@@ -112,12 +112,12 @@ def show_results(d):
     with st.container(border=True):
         st.markdown("**How the agent decided**")
         steps = [
-            ("Perceive", "Claude", ss.perceive or 'Questionnaire filled by hand. ("Read my story" lets Claude fill it from free text.)'),
-            ("Confirm", "You", f"{len(ss.ai_filled)} answers filled by Claude are marked *from story* in the form, waiting for you to check them."
+            ("Perceive", "AI", ss.perceive or 'Questionnaire filled by hand. ("Read my story" lets the AI fill it from free text.)'),
+            ("Confirm", "You", f"{len(ss.ai_filled)} answers filled by the AI are marked *from story* in the form, waiting for you to check them."
              if ss.ai_filled else "You can see and change every answer the decision uses."),
             ("Reason", "Code", f"Rules engine checked {len(r['mods'])} cancer areas and matched {r['fired']} rules. "
              "No AI is used in this step, so the same answers always give the same result."),
-            ("Act", "Claude", (ss.explain or {}).get("trace") or "Advice is fixed protocol text. Claude can explain it in your language, but cannot change any level."),
+            ("Act", "AI", (ss.explain or {}).get("trace") or "Advice is fixed protocol text. The AI can explain it in your language, but cannot change any level."),
         ]
         for i, (name, who, desc) in enumerate(steps, 1):
             st.markdown(f"**{i}. {name}** `{who}`  \n{desc}")
@@ -146,18 +146,18 @@ def show_results(d):
             st.markdown("\n".join(f"- {s}" for s in due))
 
     with st.container(border=True):
-        st.markdown("**Explain my result** `Claude`")
-        st.caption("Claude rewrites the result above in simple words. It receives only the levels and advice, not your story, and is told not to change them.")
+        st.markdown("**Explain my result** `AI`")
+        st.caption("The AI rewrites the result above in simple words. It receives only the levels and advice, not your story, and is told not to change them.")
         result_id = hashlib.sha1(json.dumps(d, sort_keys=True, default=str).encode()).hexdigest()
         lang = st.selectbox("Language", ai.LANGUAGES, key="lang")
         if st.button("Explain my result", type="primary", disabled=not client):
             text = st.write_stream(ai.explain(client, r, d, lang))
             ss.explain = {"id": result_id, "text": text,
-                          "trace": f"Claude explained the result in {lang}. The levels and advice it explained came from the rules engine."}
+                          "trace": f"The AI explained the result in {lang}. The levels and advice it explained came from the rules engine."}
         elif ss.explain and ss.explain["id"] == result_id:
             st.write(ss.explain["text"])
         if not client:
-            st.caption("Claude is not connected, so explanations are off.")
+            st.caption("No AI model is connected, so explanations are off.")
 
     st.caption("**Why no percentage?** No calculator that turns self-reported answers into a percentage chance of cancer "
                "has been validated in Indian adults. A number would look more precise than the evidence allows, so the "
@@ -169,22 +169,24 @@ left, right = st.columns([1, 1.1], gap="large")
 # ---------- Left: Perceive + Confirm ----------
 with left:
     with st.container(border=True):
-        st.subheader("Tell your story · Claude")
-        st.caption("Claude reads what you write and fills the questionnaire below. You then check every answer it filled.")
+        st.subheader("Tell your story · AI")
+        st.caption("An AI model reads what you write and fills the questionnaire below. You then check every answer it filled.")
         story = st.text_area("Your story", key="story", height=120, label_visibility="collapsed",
                              placeholder="Example: ನನಗೆ 48 ವರ್ಷ. 15 ವರ್ಷದಿಂದ ಗುಟ್ಕಾ ತಿನ್ನುತ್ತೇನೆ. ಬಾಯಲ್ಲಿ ಬಿಳಿ ಮಚ್ಚೆ ಇದೆ. / "
                                          "I am a 48-year-old man, I chew gutka for 15 years and have a white patch in my mouth.")
         if client:
             st.caption(f"Connected: {client.label}")
+            if getattr(client, "free", False):
+                st.caption(ai.FREE_NOTE)
         else:
-            st.caption("Claude is not connected (no OPENROUTER_API_KEY or ANTHROPIC_API_KEY in secrets), so this box is off. "
+            st.caption("No AI model is connected (no OPENROUTER_API_KEY or ANTHROPIC_API_KEY in secrets), so this box is off. "
                        "The questionnaire and rules engine work fully.")
         if st.button("Read my story", type="primary", disabled=not client):
             if not story.strip():
                 ss.story_status = ("warning", "Write a few sentences first.")
             else:
                 try:
-                    with st.spinner("Claude is reading…"):
+                    with st.spinner("The AI is reading… free models can take up to a minute."):
                         found, followups, lang = ai.read_story(client, story)
                     for fid, v in found.items():  # widgets below are not created yet, so this is allowed
                         ss[K(fid)] = v
@@ -194,7 +196,7 @@ with left:
                     ss.explain = None
                     if lang in ai.LANGUAGES:
                         ss.lang = lang
-                    ss.perceive = (f"Claude read your {lang} story and filled {len(found)} answers"
+                    ss.perceive = (f"The AI read your {lang} story and filled {len(found)} answers"
                                    + (f", and asked {len(followups)} follow-up questions." if followups else "."))
                     ss.story_status = ("success", f"Filled {len(found)} answers. Please check them in the form below."
                                        if found else "No answers could be filled. Try adding age, sex, habits and symptoms.")

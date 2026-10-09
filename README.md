@@ -40,7 +40,7 @@ Risk points in the other areas are a **teaching heuristic** built from establish
 | `streamlit_app.py` | The Streamlit interface |
 | `rules.py` | The rules engine (no AI) |
 | `questionnaire.py` | Questions, example cases, and the answer schema Claude fills |
-| `ai.py` | The two Claude calls (read story, explain result), via OpenRouter or the Anthropic API |
+| `ai.py` | The two AI calls (read story, explain result): free OpenRouter models by default, or Claude |
 | `tests/` | Rules and app tests (`pytest`) |
 | `index.html` | The same agent as one web page: published to GitHub Pages and usable as a claude.ai Artifact |
 
@@ -64,20 +64,26 @@ Run the tests with `pip install pytest` then `pytest`.
 2. **Create app → Deploy a public app from GitHub**: choose this repository, branch `main`, main file `streamlit_app.py`.
 3. Under **Advanced settings → Secrets**, paste **one** of:
    ```toml
-   OPENROUTER_API_KEY = "sk-or-..."            # Claude via OpenRouter (used first if present)
-   OPENROUTER_MODEL = "anthropic/claude-opus-5.5"   # optional
+   OPENROUTER_API_KEY = "sk-or-..."            # OpenRouter (used first if present): free models by default
+   # OPENROUTER_MODEL = "anthropic/claude-haiku-5.5"   # optional: one paid model instead (needs credits)
    ```
    ```toml
    ANTHROPIC_API_KEY = "sk-ant-..."            # Claude via the Anthropic API directly
    ```
 4. Deploy. Each "Read my story" or "Explain my result" press is billed to that key. The app shows which connection it is using under the story box.
 
+## AI models
+
+By default the app uses **free OpenRouter models**, tried in order when one is busy: Gemma 4 31B (best for Indian languages), then NVIDIA Nemotron 3 Ultra and Super. Free models are slower (seconds to a minute), are sometimes busy, and write Kannada and other Indian languages less well than Claude; English is the most reliable. OpenRouter allows about 50 free requests a day on an account that has never bought credits.
+
+For better Indian-language output, add OpenRouter credits and set `OPENROUTER_MODEL = "anthropic/claude-haiku-5.5"` (or choose a Claude model in the page's Connect box). The rules engine is the same either way: the model never decides a level.
+
 ## GitHub Pages version
 
 The single-page version (`index.html`) is published automatically to **https://hssling.github.io/jagruti-cancer-check/** by `.github/workflows/pages.yml` whenever `index.html` changes on `main`.
 
 - The questionnaire, rules engine and results work for everyone, with no key and no server.
-- To turn on the two Claude buttons, the presenter pastes an OpenRouter key into the **Connect Claude** box. The key is kept only in that browser tab (`sessionStorage`) and sent only to openrouter.ai; it is never in the repository. Use a key with a small credit limit.
+- To turn on the two AI buttons, the presenter pastes an OpenRouter key into the **Connect** box and keeps "Free models" selected. The key is kept only in that browser tab (`sessionStorage`) and sent only to openrouter.ai; it is never in the repository. Use a key with a small credit limit.
 - Opened inside claude.ai as an Artifact, the same file uses the viewer's own Claude account instead.
 
 ## Privacy

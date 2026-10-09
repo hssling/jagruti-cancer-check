@@ -190,15 +190,16 @@ details.mod > summary::-webkit-details-marker { display: none; }
   <div class="grid">
     <section class="intake" aria-label="Your answers">
       <div class="panel" id="story-panel">
-        <h2>Tell your story <span class="tag ai">Claude</span></h2>
-        <p class="sub">Claude reads what you write and fills the questionnaire below. You then check every answer it filled.</p>
+        <h2>Tell your story <span class="tag ai">AI</span></h2>
+        <p class="sub">An AI model reads what you write and fills the questionnaire below. You then check every answer it filled.</p>
         <div class="connect" id="connect" hidden>
-          <label for="or-key">Connect Claude with an OpenRouter key</label>
+          <label for="or-key">Connect an AI model with an OpenRouter key</label>
           <div class="row">
             <input type="password" id="or-key" placeholder="sk-or-…" autocomplete="off" spellcheck="false">
-            <select id="or-model" aria-label="Claude model">
-              <option value="anthropic/claude-opus-5.5">Claude Opus 5.5</option>
-              <option value="anthropic/claude-haiku-5.5">Claude Haiku 5.5 (cheaper)</option>
+            <select id="or-model" aria-label="AI model">
+              <option value="free">Free models (slower; English most reliable)</option>
+              <option value="anthropic/claude-haiku-5.5">Claude Haiku 5.5 (needs credits)</option>
+              <option value="anthropic/claude-opus-5.5">Claude Opus 5.5 (needs credits)</option>
             </select>
             <button class="btn" id="or-connect" type="button">Connect</button>
             <button class="btn" id="or-forget" type="button" hidden>Forget key</button>
@@ -231,7 +232,7 @@ details.mod > summary::-webkit-details-marker { display: none; }
       <li>National TB Elimination Programme: cough of 2 weeks or more is presumptive TB; sputum NAAT is free at government facilities.</li>
       <li>Park K. <i>Textbook of Preventive and Social Medicine</i>: danger signals of cancer.</li>
     </ol>
-    <div class="disclaimer"><b>Teaching prototype. Not a medical device and not validated.</b> Built to show students how a clinical AI agent separates language (AI) from decisions (fixed rules). Your answers stay in this browser tab and are not saved. "Read my story" and "Explain my result" send your text to Claude, through your claude.ai account or the OpenRouter key you enter. Do not type your name, phone number or Aadhaar number.</div>
+    <div class="disclaimer"><b>Teaching prototype. Not a medical device and not validated.</b> Built to show students how a clinical AI agent separates language (AI) from decisions (fixed rules). Your answers stay in this browser tab and are not saved. "Read my story" and "Explain my result" send your text to an AI model: Claude through your claude.ai account, or the OpenRouter model you connect. Do not type your name, phone number or Aadhaar number.</div>
   </section>
 </main>
 
@@ -655,12 +656,12 @@ function render() {
   }
 
   const steps = [
-    { tag: "ai", name: "Perceive", done: !!trace.perceive, d: trace.perceive || "Questionnaire filled by hand. (Use \"Read my story\" to let Claude fill it from free text.)" },
-    { tag: "human", name: "Confirm", done: true, d: aiFilled.size ? `${aiFilled.size} answers filled by Claude are highlighted in the form, waiting for you to check them.` : "You can see and change every answer the decision uses." },
+    { tag: "ai", name: "Perceive", done: !!trace.perceive, d: trace.perceive || "Questionnaire filled by hand. (Use \"Read my story\" to let the AI fill it from free text.)" },
+    { tag: "human", name: "Confirm", done: true, d: aiFilled.size ? `${aiFilled.size} answers filled by the AI are highlighted in the form, waiting for you to check them.` : "You can see and change every answer the decision uses." },
     { tag: "code", name: "Reason", done: true, d: `Rules engine checked ${r.mods.length} cancer areas and matched ${r.fired} rules. No AI is used in this step, so the same answers always give the same result.` },
-    { tag: "ai", name: "Act", done: !!trace.act, d: trace.act || "Advice is fixed protocol text. Claude can explain it in your language, but cannot change any level." },
+    { tag: "ai", name: "Act", done: !!trace.act, d: trace.act || "Advice is fixed protocol text. The AI can explain it in your language, but cannot change any level." },
   ];
-  const tagName = { ai: "Claude", human: "You", code: "Code" };
+  const tagName = { ai: "AI", human: "You", code: "Code" };
 
   out.innerHTML = `
     <div class="banner tier${r.overall}">
@@ -676,8 +677,8 @@ function render() {
     <div class="mods">${modHTML}</div>
     ${screens.length ? `<div class="panel"><h2>Free screening due for you</h2><p class="sub">Under the national NCD programme, at your Ayushman Arogya Mandir, PHC or government hospital.</p><ul class="screen-list">${screens.map(s => `<li>${esc(s)}</li>`).join("")}</ul></div>` : ""}
     <div class="panel" id="explain-panel">
-      <h2>Explain my result <span class="tag ai">Claude</span></h2>
-      <p class="sub">Claude rewrites the result above in simple words. It receives only the levels and advice, not your story, and is told not to change them.</p>
+      <h2>Explain my result <span class="tag ai">AI</span></h2>
+      <p class="sub">The AI rewrites the result above in simple words. It receives only the levels and advice, not your story, and is told not to change them.</p>
       <div class="row">
         <select id="lang" aria-label="Language">${["English", "Kannada", "Hindi", "Telugu", "Tamil", "Marathi", "Malayalam", "Bengali"].map(l => `<option${l === explainLang ? " selected" : ""}>${l}</option>`).join("")}</select>
         <button class="btn ai" id="explain" type="button">Explain my result</button>
@@ -711,20 +712,20 @@ function coerce(f, v) {
 const errCopy = e => ({
   not_granted: "Claude was not allowed for this page. The questionnaire still works.",
   sampling_disabled: "Claude is not available on this account. The questionnaire still works.",
-  rate_limited: "Too many requests just now. Wait a minute and try again.",
+  rate_limited: "The AI models are busy or the daily free limit is used up. Wait a minute and try again.",
   session_expired: "Please sign in to Claude again.",
-  refused: "Claude declined this text. Try rephrasing it.",
-  invalid_json: "Claude's answer could not be read. Press the button again.",
+  refused: "The AI declined this text. Try rephrasing it.",
+  invalid_json: "The AI's answer could not be read. Press the button again.",
   bad_key: "OpenRouter did not accept that key. Check it and connect again.",
   no_credits: "The OpenRouter account has run out of credits.",
   network: "Could not reach OpenRouter. Check the internet connection.",
-}[e?.code] || "Claude could not answer just now. Try again in a moment.");
+}[e?.code] || "The AI could not answer just now. Try again in a moment.");
 
 async function readStory() {
   const text = $("#story").value.trim();
   const status = $("#story-status"), btn = $("#read-story");
   if (!text) { status.textContent = "Write a few sentences first."; return; }
-  btn.disabled = true; status.className = "status"; status.textContent = "Claude is reading…";
+  btn.disabled = true; status.className = "status"; status.textContent = "The AI is reading…";
   const prompt = `You are the intake step of a cancer early-detection checklist used by ordinary people in India.
 Read the person's description below. It may be in English, Kannada, Hindi or a mix, and may use local words (gutka, khaini, beedi, paan, supari, mawa).
 Extract ONLY facts the person clearly states. Never guess or infer a diagnosis. Leave out anything not mentioned.
@@ -753,7 +754,7 @@ ${text.slice(0, 4000)}
     const lower = typeof res?.language === "string" ? res.language.trim().toLowerCase() : ""; // models vary: "kannada", "KANNADA"
     const detected = lower.charAt(0).toUpperCase() + lower.slice(1);
     if (["Kannada", "Hindi", "Telugu", "Tamil", "Marathi", "Malayalam", "Bengali"].includes(detected)) explainLang = detected;
-    trace.perceive = `Claude read your ${res?.language || ""} story and filled ${filled.length} answer${filled.length === 1 ? "" : "s"}${qs.length ? `, and asked ${qs.length} follow-up question${qs.length === 1 ? "" : "s"}` : ""}.`;
+    trace.perceive = `The AI read your ${res?.language || ""} story and filled ${filled.length} answer${filled.length === 1 ? "" : "s"}${qs.length ? `, and asked ${qs.length} follow-up question${qs.length === 1 ? "" : "s"}` : ""}.`;
     status.textContent = filled.length ? `Filled ${filled.length} answers, highlighted in purple. Please check them${qs.length ? " and answer the questions below" : ""}.` : "No answers could be filled from that text. Try adding age, sex, habits and symptoms.";
     syncForm(); render();
   } catch (e) {
@@ -802,7 +803,7 @@ ${JSON.stringify(summary)}`;
   try {
     const res = await sample(prompt, { modelTier: "quick", signal: explainCtl.signal, onText: ({ text }) => { status.textContent = ""; out.textContent = explainText = text.replace(/\*\*/g, ""); } });
     explainText = res.text.replace(/\*\*/g, ""); out.textContent = explainText;
-    trace.act = `Claude explained the result in ${lang}. The levels and advice it explained came from the rules engine.`;
+    trace.act = `The AI explained the result in ${lang}. The levels and advice it explained came from the rules engine.`;
     const done = document.querySelectorAll(".trace li")[3];
     if (done) { done.classList.add("done"); done.querySelector(".d").textContent = trace.act; }
     if (res.truncated) status.textContent = "The explanation was cut short.";
@@ -815,10 +816,10 @@ ${JSON.stringify(summary)}`;
   } finally { btn.disabled = !sample; stop.hidden = true; }
 }
 
-let aiNote = "Connecting to Claude…";
+let aiNote = "Connecting to the AI model…";
 function disableAI(note) {
   sample = null;
-  aiNote = note || "Claude is not available here, so the free-text and explanation features are off. The questionnaire and rules engine work fully.";
+  aiNote = note || "No AI model is available here, so the free-text and explanation features are off. The questionnaire and rules engine work fully.";
   $("#read-story").disabled = true;
   $("#story-status").className = "status";
   $("#story-status").textContent = aiNote;
@@ -846,9 +847,17 @@ function parseLooseJSON(raw) {
   throw { code: "invalid_json", text: raw };
 }
 
-function openRouterSample(key, model) {
+// Free models, tried in order: OpenRouter moves to the next when one is busy. Gemma writes Indian languages best.
+const OR_FREE_MODELS = ["google/gemma-4-31b-it:free", "nvidia/nemotron-3-ultra-550b-a55b:free", "nvidia/nemotron-3-super-120b-a12b:free"];
+const OR_FREE_NOTE = "Free models can take up to a minute, are sometimes busy, and write Indian languages less well than Claude. English is the most reliable.";
+
+function openRouterSample(key, choice) {
+  const free = choice === "free";
   const headers = { "Authorization": `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "Jagruti Cancer Check" };
-  const body = (prompt, extra) => JSON.stringify({ model, max_tokens: 4000, reasoning: { effort: "low" }, messages: [{ role: "user", content: prompt }], ...extra });
+  // Free models: fallback list and thinking off (thinking used up the reply budget on free reasoning models)
+  const routing = free ? { model: OR_FREE_MODELS[0], models: OR_FREE_MODELS, reasoning: { enabled: false } }
+                       : { model: choice, reasoning: { effort: "low" } };
+  const body = (prompt, extra) => JSON.stringify({ ...routing, max_tokens: 4000, messages: [{ role: "user", content: prompt }], ...extra });
   const post = async (payload, signal) => {
     let res;
     try { res = await fetch(OR_URL, { method: "POST", headers, body: payload, signal }); }
@@ -890,9 +899,12 @@ function openRouterSample(key, model) {
   }
 
   call.json = async prompt => {
-    const res = await post(body(prompt, { response_format: { type: "json_object" } }));
-    const raw = (await res.json())?.choices?.[0]?.message?.content || "";
-    return parseLooseJSON(raw);
+    // Free models get prompt-only JSON; a JSON response format is reliable only on paid models
+    const res = await post(body(prompt, free ? {} : { response_format: { type: "json_object" } }));
+    const out = await res.json();
+    // OpenRouter can answer HTTP 200 with an error and no choices (e.g. every free model busy)
+    if (!out?.choices?.length) throw { code: out?.error?.code === 429 ? "rate_limited" : "upstream_error" };
+    return parseLooseJSON(out.choices[0].message?.content || "");
   };
   return call;
 }
@@ -904,14 +916,14 @@ function connectOpenRouter(key, model) {
   $("#or-key").placeholder = "Key saved for this tab";
   $("#or-model").value = model;
   $("#or-forget").hidden = false;
-  enableAI(`OpenRouter · ${model}`);
+  enableAI(model === "free" ? `OpenRouter · free models. ${OR_FREE_NOTE}` : `OpenRouter · ${model}`);
 }
 
 function forgetKey(note) {
   try { sessionStorage.removeItem(OR_STORE); } catch {}
   $("#or-key").placeholder = "sk-or-…";
   $("#or-forget").hidden = true;
-  disableAI(note || "Connect Claude above to use the free-text and explanation features. The questionnaire and rules engine work fully without it.");
+  disableAI(note || "Connect an AI model above to use the free-text and explanation features. The questionnaire and rules engine work fully without it.");
 }
 
 function setupConnect() {
@@ -926,7 +938,7 @@ function setupConnect() {
   $("#or-forget").addEventListener("click", () => forgetKey());
   let saved = null;
   try { saved = JSON.parse(sessionStorage.getItem(OR_STORE)); } catch {}
-  if (saved?.key) connectOpenRouter(saved.key, saved.model || "anthropic/claude-opus-5.5");
+  if (saved?.key) connectOpenRouter(saved.key, saved.model || "free");
   else forgetKey();
 }
 
