@@ -750,7 +750,9 @@ ${text.slice(0, 4000)}
     activeCase = null; renderCases();
     const qs = Array.isArray(res?.missing) ? res.missing.slice(0, 3).map(String) : [];
     $("#followups").innerHTML = qs.map(q => `<li>${esc(q)}</li>`).join("");
-    if (typeof res?.language === "string" && ["Kannada", "Hindi", "Telugu", "Tamil", "Marathi", "Malayalam", "Bengali"].includes(res.language)) explainLang = res.language;
+    const lower = typeof res?.language === "string" ? res.language.trim().toLowerCase() : ""; // models vary: "kannada", "KANNADA"
+    const detected = lower.charAt(0).toUpperCase() + lower.slice(1);
+    if (["Kannada", "Hindi", "Telugu", "Tamil", "Marathi", "Malayalam", "Bengali"].includes(detected)) explainLang = detected;
     trace.perceive = `Claude read your ${res?.language || ""} story and filled ${filled.length} answer${filled.length === 1 ? "" : "s"}${qs.length ? `, and asked ${qs.length} follow-up question${qs.length === 1 ? "" : "s"}` : ""}.`;
     status.textContent = filled.length ? `Filled ${filled.length} answers, highlighted in purple. Please check them${qs.length ? " and answer the questions below" : ""}.` : "No answers could be filled from that text. Try adding age, sex, habits and symptoms.";
     syncForm(); render();

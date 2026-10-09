@@ -169,7 +169,8 @@ Description:
         val = coerce(f, item.get("value")) if f else None
         if val is not None:
             answers[item["id"]] = val
-    return answers, [str(q) for q in data.get("follow_up_questions", [])][:3], str(data.get("language", ""))
+    language = str(data.get("language", "")).strip().title()  # models vary: "kannada", "KANNADA"
+    return answers, [str(q) for q in data.get("follow_up_questions", [])][:3], language
 
 
 def explain(client, result, d, language):
@@ -196,7 +197,13 @@ Rules:
 
 Result:
 {json.dumps(summary, ensure_ascii=False)}"""
+    wrote = False
     try:
-        yield from client.stream(prompt)
+        for piece in client.stream(prompt):
+            wrote = True
+            yield piece
     except API_ERRORS as e:
         yield f"\n\n{friendly(e)}"
+        return
+    if not wrote:
+        yield "Claude returned an empty explanation. Press the button again. The result and advice above still apply."
