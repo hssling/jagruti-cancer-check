@@ -42,7 +42,7 @@ Risk points in the other areas are a **teaching heuristic** built from establish
 | `questionnaire.py` | Questions, example cases, and the answer schema Claude fills |
 | `ai.py` | The two Claude calls (read story, explain result), via OpenRouter or the Anthropic API |
 | `tests/` | Rules and app tests (`pytest`) |
-| `index.html` | A standalone single-page version of the same agent, for use as a claude.ai Artifact |
+| `index.html` | The same agent as one web page: published to GitHub Pages and usable as a claude.ai Artifact |
 
 ## Run locally
 
@@ -71,6 +71,14 @@ Run the tests with `pip install pytest` then `pytest`.
    ANTHROPIC_API_KEY = "sk-ant-..."            # Claude via the Anthropic API directly
    ```
 4. Deploy. Each "Read my story" or "Explain my result" press is billed to that key. The app shows which connection it is using under the story box.
+
+## GitHub Pages version
+
+The single-page version (`index.html`) is published automatically to **https://hssling.github.io/jagruti-cancer-check/** by `.github/workflows/pages.yml` whenever `index.html` changes on `main`.
+
+- The questionnaire, rules engine and results work for everyone, with no key and no server.
+- To turn on the two Claude buttons, the presenter pastes an OpenRouter key into the **Connect Claude** box. The key is kept only in that browser tab (`sessionStorage`) and sent only to openrouter.ai; it is never in the repository. Use a key with a small credit limit.
+- Opened inside claude.ai as an Artifact, the same file uses the viewer's own Claude account instead.
 
 ## Privacy
 

@@ -42,7 +42,9 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
 .wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 0 48px; }
 h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -88,6 +90,10 @@ textarea { width: 100%; min-height: 110px; resize: vertical; border: 1px solid v
 .status { font-size: 13px; color: var(--muted); }
 .status.err { color: var(--t3); }
 .followups { margin: 0; padding-left: 18px; font-size: 14px; }
+.connect { display: grid; gap: 6px; background: var(--ai-soft); border-radius: 8px; padding: 10px 12px; }
+.connect label { font-size: 13px; font-weight: 600; color: var(--ai); }
+.connect input, .connect select { border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; background: var(--surface); min-width: 0; }
+.connect input { flex: 1 1 180px; }
 .followups:empty { display: none; }
 
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 16px; }
@@ -186,6 +192,19 @@ details.mod > summary::-webkit-details-marker { display: none; }
       <div class="panel" id="story-panel">
         <h2>Tell your story <span class="tag ai">Claude</span></h2>
         <p class="sub">Claude reads what you write and fills the questionnaire below. You then check every answer it filled.</p>
+        <div class="connect" id="connect" hidden>
+          <label for="or-key">Connect Claude with an OpenRouter key</label>
+          <div class="row">
+            <input type="password" id="or-key" placeholder="sk-or-…" autocomplete="off" spellcheck="false">
+            <select id="or-model" aria-label="Claude model">
+              <option value="anthropic/claude-opus-5.5">Claude Opus 5.5</option>
+              <option value="anthropic/claude-haiku-5.5">Claude Haiku 5.5 (cheaper)</option>
+            </select>
+            <button class="btn" id="or-connect" type="button">Connect</button>
+            <button class="btn" id="or-forget" type="button" hidden>Forget key</button>
+          </div>
+          <p class="note">The key stays in this browser tab only, is cleared when you close the tab, and is sent only to openrouter.ai. Use a key with a small credit limit.</p>
+        </div>
         <textarea id="story" placeholder="Example: ನನಗೆ 48 ವರ್ಷ. 15 ವರ್ಷದಿಂದ ಗುಟ್ಕಾ ತಿನ್ನುತ್ತೇನೆ. ಬಾಯಲ್ಲಿ ಬಿಳಿ ಮಚ್ಚೆ ಇದೆ. / I am a 48-year-old man, I chew gutka for 15 years and have a white patch in my mouth."></textarea>
         <div class="row">
           <button class="btn ai" id="read-story" type="button">Read my story</button>
@@ -212,7 +231,7 @@ details.mod > summary::-webkit-details-marker { display: none; }
       <li>National TB Elimination Programme: cough of 2 weeks or more is presumptive TB; sputum NAAT is free at government facilities.</li>
       <li>Park K. <i>Textbook of Preventive and Social Medicine</i>: danger signals of cancer.</li>
     </ol>
-    <div class="disclaimer"><b>Teaching prototype. Not a medical device and not validated.</b> Built to show students how a clinical AI agent separates language (AI) from decisions (fixed rules). Your answers stay in this browser tab and are not saved. "Read my story" and "Explain my result" send your text to Claude on your own account. Do not type your name, phone number or Aadhaar number.</div>
+    <div class="disclaimer"><b>Teaching prototype. Not a medical device and not validated.</b> Built to show students how a clinical AI agent separates language (AI) from decisions (fixed rules). Your answers stay in this browser tab and are not saved. "Read my story" and "Explain my result" send your text to Claude, through your claude.ai account or the OpenRouter key you enter. Do not type your name, phone number or Aadhaar number.</div>
   </section>
 </main>
 
@@ -696,6 +715,9 @@ const errCopy = e => ({
   session_expired: "Please sign in to Claude again.",
   refused: "Claude declined this text. Try rephrasing it.",
   invalid_json: "Claude's answer could not be read. Press the button again.",
+  bad_key: "OpenRouter did not accept that key. Check it and connect again.",
+  no_credits: "The OpenRouter account has run out of credits.",
+  network: "Could not reach OpenRouter. Check the internet connection.",
 }[e?.code] || "Claude could not answer just now. Try again in a moment.");
 
 async function readStory() {
@@ -735,7 +757,8 @@ ${text.slice(0, 4000)}
   } catch (e) {
     status.className = "status err"; status.textContent = errCopy(e);
     if (e?.code === "not_granted" || e?.code === "sampling_disabled") disableAI();
-  } finally { btn.disabled = false; }
+    if (e?.code === "bad_key") forgetKey(errCopy(e));
+  } finally { btn.disabled = !sample; }
 }
 
 function bindExplain() {
@@ -786,16 +809,123 @@ ${JSON.stringify(summary)}`;
     if (e?.code !== "cancelled") { status.className = "status err"; status.textContent = errCopy(e); }
     else status.textContent = "";
     if (e?.code === "not_granted" || e?.code === "sampling_disabled") disableAI();
+    if (e?.code === "bad_key") forgetKey(errCopy(e));
   } finally { btn.disabled = !sample; stop.hidden = true; }
 }
 
 let aiNote = "Connecting to Claude…";
-function disableAI() {
+function disableAI(note) {
   sample = null;
-  aiNote = "Claude is not available here, so the free-text and explanation features are off. The questionnaire and rules engine work fully.";
+  aiNote = note || "Claude is not available here, so the free-text and explanation features are off. The questionnaire and rules engine work fully.";
   $("#read-story").disabled = true;
+  $("#story-status").className = "status";
   $("#story-status").textContent = aiNote;
   const b = $("#explain"); if (b) { b.disabled = true; $("#explain-status").textContent = aiNote; }
+}
+
+function enableAI(label) {
+  aiNote = "";
+  $("#read-story").disabled = false;
+  $("#story-status").className = "status";
+  $("#story-status").textContent = `Connected: ${label}`;
+  render();
+}
+
+/* ---------- 5b. OpenRouter connector (for hosting outside claude.ai, e.g. GitHub Pages) ----------
+   Same call shape as the claude.ai `sample` capability, so readStory() and explain() need no changes.
+   The key is typed by the presenter, kept in sessionStorage only, and sent only to openrouter.ai. */
+const OR_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OR_STORE = "jagruti-openrouter";
+
+function parseLooseJSON(raw) {
+  try { return JSON.parse(raw); } catch {}
+  const s = raw.indexOf("{"), e = raw.lastIndexOf("}");
+  if (s >= 0 && e > s) { try { return JSON.parse(raw.slice(s, e + 1)); } catch {} }
+  throw { code: "invalid_json", text: raw };
+}
+
+function openRouterSample(key, model) {
+  const headers = { "Authorization": `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "Jagruti Cancer Check" };
+  const body = (prompt, extra) => JSON.stringify({ model, max_tokens: 4000, reasoning: { effort: "low" }, messages: [{ role: "user", content: prompt }], ...extra });
+  const post = async (payload, signal) => {
+    let res;
+    try { res = await fetch(OR_URL, { method: "POST", headers, body: payload, signal }); }
+    catch (e) { throw { code: e?.name === "AbortError" ? "cancelled" : "network" }; }
+    if (!res.ok) {
+      throw { code: res.status === 401 ? "bad_key" : res.status === 402 ? "no_credits" : res.status === 429 ? "rate_limited" : "upstream_error" };
+    }
+    return res;
+  };
+
+  // Streaming call: reads server-sent events and reports the whole text so far through onText
+  async function call(prompt, opts = {}) {
+    const res = await post(body(prompt, { stream: true }), opts.signal);
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = "", text = "";
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith("data:")) continue; // skips OpenRouter's ": PROCESSING" keep-alive comments
+          const payload = line.slice(5).trim();
+          if (payload === "[DONE]") continue;
+          let j; try { j = JSON.parse(payload); } catch { continue; }
+          if (j.error) throw { code: "upstream_error", text };
+          const delta = j.choices?.[0]?.delta?.content;
+          if (delta) { text += delta; opts.onText?.({ text, delta }); }
+        }
+      }
+    } catch (e) {
+      if (e?.code) throw e;
+      throw { code: e?.name === "AbortError" ? "cancelled" : "upstream_error", text };
+    }
+    if (!text.trim()) throw { code: "empty_completion" };
+    return { text, truncated: false };
+  }
+
+  call.json = async prompt => {
+    const res = await post(body(prompt, { response_format: { type: "json_object" } }));
+    const raw = (await res.json())?.choices?.[0]?.message?.content || "";
+    return parseLooseJSON(raw);
+  };
+  return call;
+}
+
+function connectOpenRouter(key, model) {
+  sample = openRouterSample(key, model);
+  try { sessionStorage.setItem(OR_STORE, JSON.stringify({ key, model })); } catch {}
+  $("#or-key").value = "";
+  $("#or-key").placeholder = "Key saved for this tab";
+  $("#or-model").value = model;
+  $("#or-forget").hidden = false;
+  enableAI(`OpenRouter · ${model}`);
+}
+
+function forgetKey(note) {
+  try { sessionStorage.removeItem(OR_STORE); } catch {}
+  $("#or-key").placeholder = "sk-or-…";
+  $("#or-forget").hidden = true;
+  disableAI(note || "Connect Claude above to use the free-text and explanation features. The questionnaire and rules engine work fully without it.");
+}
+
+function setupConnect() {
+  $("#connect").hidden = false;
+  $("#or-connect").addEventListener("click", () => {
+    const key = $("#or-key").value.trim();
+    if (!key) { $("#story-status").textContent = "Paste an OpenRouter key first."; return; }
+    connectOpenRouter(key, $("#or-model").value);
+  });
+  $("#or-key").addEventListener("keydown", e => { if (e.key === "Enter") $("#or-connect").click(); });
+  $("#or-model").addEventListener("change", () => { if (sample) { let s = null; try { s = JSON.parse(sessionStorage.getItem(OR_STORE)); } catch {} if (s?.key) connectOpenRouter(s.key, $("#or-model").value); } });
+  $("#or-forget").addEventListener("click", () => forgetKey());
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem(OR_STORE)); } catch {}
+  if (saved?.key) connectOpenRouter(saved.key, saved.model || "anthropic/claude-opus-5.5");
+  else forgetKey();
 }
 
 /* ---------- 6. Example cases (invented, for teaching) ---------- */
@@ -832,10 +962,15 @@ $("#chip").addEventListener("click", () => $("#results").scrollIntoView({ behavi
 $("#read-story").addEventListener("click", readStory);
 loadCase("A");
 
-(async () => {
-  try { sample = typeof window.claude?.use === "function" ? await window.claude.use("sample") : null; } catch { sample = null; }
-  if (!sample) { disableAI(); return; }
-  aiNote = ""; $("#read-story").disabled = false; render();
-})();
 $("#read-story").disabled = true;
+if (typeof window.claude?.use === "function") {
+  // Inside claude.ai: use the viewer's own Claude account
+  (async () => {
+    try { sample = await window.claude.use("sample"); } catch { sample = null; }
+    if (sample) enableAI("Claude (your claude.ai account)"); else disableAI();
+  })();
+} else {
+  // Anywhere else (GitHub Pages, a local file): optional OpenRouter key
+  setupConnect();
+}
 </script>
