@@ -51,7 +51,7 @@ def test_switching_sex_hides_womens_section():
 
 def test_story_fills_form_and_marks_answers(monkeypatch):
     import ai
-    monkeypatch.setattr(ai, "make_client", lambda key: object())  # pretend Claude is connected
+    monkeypatch.setattr(ai, "make_client", lambda **kw: type("Fake", (), {"label": "test"})())  # pretend Claude is connected
     monkeypatch.setattr(ai, "read_story", lambda client, text: (
         {"age": 48, "sex": "male", "smokeless": "current", "mouthUlcer": True},
         ["ನೀವು ಧೂಮಪಾನ ಮಾಡುತ್ತೀರಾ?"], "Kannada"))

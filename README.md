@@ -40,7 +40,7 @@ Risk points in the other areas are a **teaching heuristic** built from establish
 | `streamlit_app.py` | The Streamlit interface |
 | `rules.py` | The rules engine (no AI) |
 | `questionnaire.py` | Questions, example cases, and the answer schema Claude fills |
-| `ai.py` | The two Claude calls (read story, explain result) |
+| `ai.py` | The two Claude calls (read story, explain result), via OpenRouter or the Anthropic API |
 | `tests/` | Rules and app tests (`pytest`) |
 | `index.html` | A standalone single-page version of the same agent, for use as a claude.ai Artifact |
 
@@ -50,11 +50,11 @@ Risk points in the other areas are a **teaching heuristic** built from establish
 python -m venv .venv
 .venv/Scripts/activate          # Windows; use .venv/bin/activate on macOS/Linux
 pip install -r requirements.txt
-copy .streamlit\secrets.toml.example .streamlit\secrets.toml   # then paste your Anthropic API key
+copy .streamlit\secrets.toml.example .streamlit\secrets.toml   # then paste your OpenRouter or Anthropic key
 streamlit run streamlit_app.py
 ```
 
-Without an API key the questionnaire and rules engine still work fully; only the two Claude buttons are switched off.
+Without a key the questionnaire and rules engine still work fully; only the two Claude buttons are switched off.
 
 Run the tests with `pip install pytest` then `pytest`.
 
@@ -62,12 +62,16 @@ Run the tests with `pip install pytest` then `pytest`.
 
 1. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with GitHub.
 2. **Create app → Deploy a public app from GitHub**: choose this repository, branch `main`, main file `streamlit_app.py`.
-3. Under **Advanced settings → Secrets**, paste:
+3. Under **Advanced settings → Secrets**, paste **one** of:
    ```toml
-   ANTHROPIC_API_KEY = "sk-ant-..."
+   OPENROUTER_API_KEY = "sk-or-..."            # Claude via OpenRouter (used first if present)
+   OPENROUTER_MODEL = "anthropic/claude-opus-5.5"   # optional
    ```
-4. Deploy. Each "Read my story" or "Explain my result" press is billed to that API key.
+   ```toml
+   ANTHROPIC_API_KEY = "sk-ant-..."            # Claude via the Anthropic API directly
+   ```
+4. Deploy. Each "Read my story" or "Explain my result" press is billed to that key. The app shows which connection it is using under the story box.
 
 ## Privacy
 
-Answers are not stored. Text sent with the two Claude buttons goes to Anthropic's API. Users are told not to type names, phone numbers or Aadhaar numbers.
+Answers are not stored. Text sent with the two Claude buttons goes to OpenRouter or Anthropic, whichever key is configured. Users are told not to type names, phone numbers or Aadhaar numbers.

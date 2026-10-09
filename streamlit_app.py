@@ -23,15 +23,16 @@ ss = st.session_state
 K = lambda fid: f"f_{fid}"
 
 
-def api_key():
+def secret(name):
     try:
-        key = st.secrets.get("ANTHROPIC_API_KEY")
+        value = st.secrets.get(name)
     except Exception:  # no secrets file at all
-        key = None
-    return key or os.environ.get("ANTHROPIC_API_KEY")
+        value = None
+    return value or os.environ.get(name)
 
 
-client = ai.make_client(api_key())
+client = ai.make_client(openrouter_key=secret("OPENROUTER_API_KEY"), openrouter_model=secret("OPENROUTER_MODEL"),
+                        anthropic_key=secret("ANTHROPIC_API_KEY"))
 for name, default in {"ai_filled": set(), "followups": [], "perceive": None, "explain": None,
                       "active_case": None, "story_status": None}.items():
     ss.setdefault(name, default)
@@ -173,8 +174,11 @@ with left:
         story = st.text_area("Your story", key="story", height=120, label_visibility="collapsed",
                              placeholder="Example: ನನಗೆ 48 ವರ್ಷ. 15 ವರ್ಷದಿಂದ ಗುಟ್ಕಾ ತಿನ್ನುತ್ತೇನೆ. ಬಾಯಲ್ಲಿ ಬಿಳಿ ಮಚ್ಚೆ ಇದೆ. / "
                                          "I am a 48-year-old man, I chew gutka for 15 years and have a white patch in my mouth.")
-        if not client:
-            st.caption("Claude is not connected (no ANTHROPIC_API_KEY), so this box is off. The questionnaire and rules engine work fully.")
+        if client:
+            st.caption(f"Connected: {client.label}")
+        else:
+            st.caption("Claude is not connected (no OPENROUTER_API_KEY or ANTHROPIC_API_KEY in secrets), so this box is off. "
+                       "The questionnaire and rules engine work fully.")
         if st.button("Read my story", type="primary", disabled=not client):
             if not story.strip():
                 ss.story_status = ("warning", "Write a few sentences first.")
