@@ -1,0 +1,841 @@
+<title>Jagruti Cancer Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Hind:wght@400;500;600&family=IBM+Plex+Mono:wght@500&family=Noto+Sans+Kannada:wght@400;600&display=swap">
+<style>
+/* Layout: two-pane clinic intake — questionnaire on the left, live triage sheet on the right (stacks on phones) */
+:root {
+  --bg: #f4f5fa;
+  --surface: #ffffff;
+  --sunk: #eceef6;
+  --ink: #1b1d3a;
+  --muted: #595d7d;
+  --line: #d9dcea;
+  --accent: #3a3fb0;
+  --accent-ink: #ffffff;
+  --accent-soft: #e6e7fb;
+  --ai: #7a3fb0;
+  --ai-soft: #f1e8fb;
+  --t0: #2e7d4f; --t0-bg: #e3f3e9;
+  --t1: #1d5fa8; --t1-bg: #e3edf9;
+  --t2: #a14a05; --t2-bg: #fcefdc;
+  --t3: #b42318; --t3-bg: #fde7e4;
+  --t4: #ffffff; --t4-bg: #8f1a12;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Hind", "Noto Sans Kannada", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11121c; --surface: #1a1b2a; --sunk: #232438; --ink: #e8e9f5; --muted: #a2a5c3; --line: #2e3048;
+    --accent: #9297ff; --accent-ink: #11121c; --accent-soft: #272a52; --ai: #c79bff; --ai-soft: #2d2342;
+    --t0: #7fd6a2; --t0-bg: #16301f; --t1: #8cb8ff; --t1-bg: #172a45; --t2: #ffb868; --t2-bg: #3a2610;
+    --t3: #ff8a80; --t3-bg: #43191a; --t4: #ffffff; --t4-bg: #b3261e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11121c; --surface: #1a1b2a; --sunk: #232438; --ink: #e8e9f5; --muted: #a2a5c3; --line: #2e3048;
+  --accent: #9297ff; --accent-ink: #11121c; --accent-soft: #272a52; --ai: #c79bff; --ai-soft: #2d2342;
+  --t0: #7fd6a2; --t0-bg: #16301f; --t1: #8cb8ff; --t1-bg: #172a45; --t2: #ffb868; --t2-bg: #3a2610;
+  --t3: #ff8a80; --t3-bg: #43191a; --t4: #ffffff; --t4-bg: #b3261e;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 0 48px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* header */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+.top-inner { max-width: 1240px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-right: auto; }
+.brand h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+.brand span { color: var(--muted); font-size: 13px; }
+.result-chip { border: 0; border-radius: 999px; padding: 6px 14px; font-weight: 600; font-size: 13px; cursor: pointer; }
+.proto { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 2px 8px; }
+
+.intro { display: grid; gap: 6px; padding-block: 22px 14px; max-width: 72ch; }
+.intro p { margin: 0; color: var(--muted); }
+.cases { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-bottom: 16px; }
+.cases b { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 14px; }
+.btn:hover { border-color: var(--accent); }
+.btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.ai { background: var(--ai); color: var(--surface); border-color: var(--ai); font-weight: 600; }
+.btn:disabled { opacity: 0.55; cursor: progress; }
+.example-note { font-size: 13px; color: var(--t2); background: var(--t2-bg); border-radius: 6px; padding: 6px 10px; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 24px; align-items: start; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.results { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 64px); display: grid; gap: 14px; max-height: calc(100vh - 80px); overflow-y: auto; padding-right: 4px; }
+@media (max-width: 900px) { .results { position: static; max-height: none; overflow: visible; } }
+
+/* intake */
+.intake { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.panel > h2 { font-size: 17px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.panel .sub { margin: -6px 0 0; color: var(--muted); font-size: 13px; }
+.tag { font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 4px; padding: 1px 6px; }
+.tag.ai { background: var(--ai-soft); color: var(--ai); }
+.tag.code { background: var(--accent-soft); color: var(--accent); }
+.tag.human { background: var(--t0-bg); color: var(--t0); }
+textarea { width: 100%; min-height: 110px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--bg); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.status { font-size: 13px; color: var(--muted); }
+.status.err { color: var(--t3); }
+.followups { margin: 0; padding-left: 18px; font-size: 14px; }
+.followups:empty { display: none; }
+
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 16px; }
+.field { display: grid; gap: 4px; min-width: 0; border-radius: 6px; }
+.field > label, .field > .lbl { font-size: 13px; font-weight: 600; color: var(--muted); }
+.field input[type=number], .field select { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: var(--bg); width: 100%; }
+.field.wide { grid-column: 1 / -1; }
+.seg { display: flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; width: fit-content; max-width: 100%; }
+.seg label { padding: 5px 12px; cursor: pointer; font-size: 14px; border-right: 1px solid var(--line); }
+.seg label:last-child { border-right: 0; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label:has(input:checked) { background: var(--accent); color: var(--accent-ink); }
+.seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.checks { display: grid; gap: 2px; }
+.check { display: flex; gap: 10px; align-items: flex-start; padding: 5px 6px; border-radius: 6px; cursor: pointer; }
+.check:hover { background: var(--sunk); }
+.check input { margin-top: 4px; accent-color: var(--accent); width: 16px; height: 16px; flex: none; }
+.group-h { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 6px 0 0 6px; font-weight: 600; }
+.ai-filled { background: var(--ai-soft); box-shadow: inset 3px 0 0 var(--ai); }
+.ai-filled::after { content: "from story"; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ai); margin-left: auto; padding-left: 6px; white-space: nowrap; }
+.field.ai-filled { padding: 4px 6px; }
+
+/* results */
+.banner { border-radius: 10px; padding: 16px; display: grid; gap: 6px; }
+.banner .eyebrow { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; font-weight: 600; }
+.banner h2 { font-size: 28px; font-weight: 800; line-height: 1.1; }
+.banner p { margin: 0; }
+.tier0 { background: var(--t0-bg); color: var(--t0); }
+.tier1 { background: var(--t1-bg); color: var(--t1); }
+.tier2 { background: var(--t2-bg); color: var(--t2); }
+.tier3 { background: var(--t3-bg); color: var(--t3); }
+.tier4 { background: var(--t4-bg); color: var(--t4); }
+.banner .why { color: var(--ink); font-size: 14px; }
+.tier4 .why { color: var(--t4); }
+
+.trace { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.trace li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; padding: 8px 0; border-top: 1px dashed var(--line); }
+.trace li:first-child { border-top: 0; }
+.trace .n { font-family: var(--font-data); font-size: 12px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--sunk); color: var(--muted); }
+.trace li.done .n { background: var(--accent); color: var(--accent-ink); }
+.trace .t { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-weight: 600; }
+.trace .d { color: var(--muted); font-size: 13px; }
+
+.mods { display: grid; gap: 8px; }
+details.mod { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+details.mod > summary { list-style: none; cursor: pointer; padding: 12px 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; }
+details.mod > summary::-webkit-details-marker { display: none; }
+.mod-name { font-weight: 600; font-size: 15px; }
+.pill { font-size: 12px; font-weight: 600; border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+.meter { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-family: var(--font-data); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meter .bar { flex: 1; height: 6px; background: var(--sunk); border-radius: 3px; overflow: hidden; }
+.meter .bar i { display: block; height: 100%; border-radius: 3px; }
+.mod-body { padding: 0 14px 14px; display: grid; gap: 10px; font-size: 14px; }
+.mod-body h4 { margin: 0; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.mod-body ul { margin: 4px 0 0; padding-left: 18px; }
+.flags li { color: var(--t3); font-weight: 500; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.chip { font-size: 12px; background: var(--sunk); border-radius: 4px; padding: 2px 8px; }
+.chip b { font-family: var(--font-data); font-weight: 500; color: var(--muted); }
+.basis { font-size: 12px; color: var(--muted); display: grid; gap: 3px; border-top: 1px solid var(--line); padding-top: 8px; }
+.basis span b { color: var(--ink); font-weight: 600; }
+
+.explain-out { white-space: pre-wrap; background: var(--ai-soft); border-radius: 8px; padding: 12px; font-size: 15px; line-height: 1.6; }
+.explain-out:empty { display: none; }
+.explain-out:lang(kn) { font-family: "Noto Sans Kannada", var(--font-body); }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+.screen-list { margin: 0; padding-left: 18px; font-size: 14px; }
+.placeholder { color: var(--muted); padding: 20px; text-align: center; border: 1px dashed var(--line); border-radius: 10px; }
+
+.refs { font-size: 13px; color: var(--muted); padding-top: 28px; max-width: 90ch; }
+.refs h2 { font-size: 16px; color: var(--ink); margin-bottom: 6px; }
+.refs ol { padding-left: 20px; margin: 0; display: grid; gap: 4px; }
+.disclaimer { margin-top: 18px; font-size: 13px; padding: 12px 14px; border-radius: 8px; background: var(--sunk); max-width: 90ch; }
+@media (prefers-reduced-motion: no-preference) { .meter .bar i { transition: width 0.3s ease; } }
+</style>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand"><h1>Jagruti Cancer Check</h1><span>Early-warning agent for adults in India</span></div>
+    <span class="proto">Teaching prototype</span>
+    <button class="result-chip tier1" id="chip" type="button">Result</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="intro">
+    <p>Answer the questions, or describe your health in your own words in English, ಕನ್ನಡ or हिंदी. The agent checks your answers against Indian national screening rules and established cancer warning-sign guidelines, then tells you what to do next. It does not diagnose cancer.</p>
+  </section>
+
+  <div class="cases" id="cases">
+    <b>Example cases</b>
+  </div>
+
+  <div class="grid">
+    <section class="intake" aria-label="Your answers">
+      <div class="panel" id="story-panel">
+        <h2>Tell your story <span class="tag ai">Claude</span></h2>
+        <p class="sub">Claude reads what you write and fills the questionnaire below. You then check every answer it filled.</p>
+        <textarea id="story" placeholder="Example: ನನಗೆ 48 ವರ್ಷ. 15 ವರ್ಷದಿಂದ ಗುಟ್ಕಾ ತಿನ್ನುತ್ತೇನೆ. ಬಾಯಲ್ಲಿ ಬಿಳಿ ಮಚ್ಚೆ ಇದೆ. / I am a 48-year-old man, I chew gutka for 15 years and have a white patch in my mouth."></textarea>
+        <div class="row">
+          <button class="btn ai" id="read-story" type="button">Read my story</button>
+          <span class="status" id="story-status"></span>
+        </div>
+        <ul class="followups" id="followups"></ul>
+      </div>
+      <div id="form"></div>
+      <div class="row"><button class="btn" id="clear" type="button">Clear all answers</button></div>
+    </section>
+
+    <aside class="results" id="results" aria-live="polite"></aside>
+  </div>
+
+  <section class="refs">
+    <h2>Where the rules come from</h2>
+    <ol>
+      <li>Ministry of Health &amp; Family Welfare. Operational Guidelines for Prevention, Screening and Control of Common Non-Communicable Diseases (NP-NCD): oral visual examination, clinical breast examination and VIA for adults aged 30–65, every 5 years.</li>
+      <li>NP-NCD Community Based Assessment Checklist (CBAC), Part B: cancer warning signs asked by ASHAs.</li>
+      <li>Yeoh KG, et al. The Asia-Pacific Colorectal Screening score: a validated tool that stratifies risk for colorectal advanced neoplasia in asymptomatic Asian subjects. <i>Gut</i> 2011;60:1236–41.</li>
+      <li>National Institute for Health and Care Excellence. NG12: Suspected cancer: recognition and referral (red-flag symptoms and age thresholds).</li>
+      <li>World Health Organization. WHO guideline for screening and treatment of cervical pre-cancer lesions, 2nd ed., 2021 (earlier and more frequent screening for women living with HIV).</li>
+      <li>US Preventive Services Task Force. Screening for lung cancer. <i>JAMA</i> 2021;325:962–70 (age 50–80, ≥20 pack-years).</li>
+      <li>National TB Elimination Programme: cough of 2 weeks or more is presumptive TB; sputum NAAT is free at government facilities.</li>
+      <li>Park K. <i>Textbook of Preventive and Social Medicine</i>: danger signals of cancer.</li>
+    </ol>
+    <div class="disclaimer"><b>Teaching prototype. Not a medical device and not validated.</b> Built to show students how a clinical AI agent separates language (AI) from decisions (fixed rules). Your answers stay in this browser tab and are not saved. "Read my story" and "Explain my result" send your text to Claude on your own account. Do not type your name, phone number or Aadhaar number.</div>
+  </section>
+</main>
+
+<script>
+/* ---------- 1. Questionnaire definition (single source for the form AND for Claude's extraction schema) ---------- */
+const NEVER_PAST_NOW = [["never", "Never"], ["past", "In the past"], ["current", "Now"]];
+const isF = d => d.sex === "female";
+const isM = d => d.sex === "male";
+
+const SECTIONS = [
+  { title: "About you", fields: [
+    { id: "age", type: "number", label: "Age (years)", min: 15, max: 100 },
+    { id: "sex", type: "choice", label: "Sex", opts: [["male", "Male"], ["female", "Female"]] },
+    { id: "region", type: "select", label: "Where do you live?", opts: [["", "Choose…"], ["south", "South India"], ["north", "North India (Gangetic plains)"], ["east", "East India (incl. Bihar, Bengal)"], ["northeast", "North-East India"], ["west", "West India"], ["central", "Central India"]] },
+    { id: "height", type: "number", label: "Height (cm)", min: 100, max: 220 },
+    { id: "weight", type: "number", label: "Weight (kg)", min: 25, max: 200 },
+  ]},
+  { title: "Tobacco, alcohol and daily life", fields: [
+    { id: "smokeless", type: "choice", wide: true, label: "Chewing tobacco: gutka, khaini, zarda, mawa, paan with tobacco", opts: NEVER_PAST_NOW },
+    { id: "smokelessYears", type: "number", label: "Years of chewing tobacco", min: 0, max: 80, when: d => d.smokeless && d.smokeless !== "never" },
+    { id: "smoking", type: "choice", wide: true, label: "Smoking: bidi, cigarette, hookah", opts: NEVER_PAST_NOW },
+    { id: "sticksPerDay", type: "number", label: "Bidis or cigarettes per day", min: 0, max: 100, when: d => d.smoking && d.smoking !== "never" },
+    { id: "smokeYears", type: "number", label: "Years of smoking", min: 0, max: 80, when: d => d.smoking && d.smoking !== "never" },
+    { id: "alcohol", type: "choice", wide: true, label: "Alcohol", opts: [["none", "None"], ["occasional", "Sometimes"], ["daily", "Daily"]] },
+    { id: "checks_life", type: "checks", wide: true, items: [
+      { id: "areca", label: "Paan or supari (areca nut) without tobacco, regularly" },
+      { id: "biomass", label: "Cooked for 10+ years on wood, dung cakes, coal or kerosene indoors" },
+      { id: "occupational", label: "Worked with asbestos, silica dust, mining or dye chemicals" },
+      { id: "inactive", label: "Less than 150 minutes of brisk walking or exercise a week" },
+      { id: "lowVeg", label: "Eat fruit or vegetables on fewer than 5 days a week" },
+    ]},
+  ]},
+  { title: "Family and medical history", fields: [
+    { id: "checks_hist", type: "checks", wide: true, items: [
+      { id: "fhBreast", label: "Mother, sister or daughter had breast or ovarian cancer" },
+      { id: "fhColorectal", label: "Parent, brother, sister or child had bowel (colon or rectum) cancer" },
+      { id: "fhLung", label: "Parent, brother or sister had lung cancer" },
+      { id: "fhOther", label: "Any other cancer in a close family member" },
+      { id: "hiv", label: "Living with HIV" },
+      { id: "hepBC", label: "Hepatitis B or hepatitis C infection" },
+      { id: "gallstones", label: "Known gallstones" },
+    ]},
+  ]},
+  { title: "Women's health", when: isF, fields: [
+    { id: "menopause", type: "choice", label: "Have your periods stopped for good?", opts: [["no", "No"], ["yes", "Yes"]] },
+    { id: "children", type: "number", label: "Number of children (deliveries)", min: 0, max: 15 },
+    { id: "lastCervicalScreen", type: "select", label: "Last cervical test (VIA, Pap or HPV)", opts: [["never", "Never tested"], ["over5", "More than 5 years ago"], ["within5", "Within the last 5 years"]] },
+    { id: "checks_women", type: "checks", wide: true, items: [
+      { id: "menarcheEarly", label: "Periods started before age 12" },
+      { id: "menopauseLate", label: "Periods stopped after age 55", when: d => d.menopause === "yes" },
+      { id: "firstChildLate", label: "First child after age 30, or no children" },
+      { id: "noBreastfeed", label: "Never breastfed a child" },
+      { id: "hrt", label: "Took hormone tablets after menopause (HRT)" },
+      { id: "earlyMarriage", label: "Married or sexually active before age 18" },
+      { id: "multiplePartners", label: "More than one sexual partner (you or your husband)" },
+      { id: "ocp", label: "Took birth-control pills for 5 years or more" },
+      { id: "hpvVaccine", label: "Received the HPV vaccine" },
+    ]},
+  ]},
+  { title: "Symptoms you have now", fields: [
+    { id: "sym_mouth", type: "checks", wide: true, group: "Mouth and throat", items: [
+      { id: "mouthUlcer", label: "A sore or ulcer in the mouth that has not healed in 2 weeks" },
+      { id: "mouthPatch", label: "A white or red patch inside the mouth" },
+      { id: "mouthOpening", label: "Difficulty opening the mouth fully" },
+      { id: "mouthGrowth", label: "A growth or lump in the mouth" },
+      { id: "hoarseness", label: "Hoarse or changed voice for more than 3 weeks" },
+      { id: "dysphagia", label: "Difficulty swallowing food" },
+    ]},
+    { id: "sym_chest", type: "checks", wide: true, group: "Chest", items: [
+      { id: "cough2w", label: "Cough for 2 weeks or more" },
+      { id: "haemoptysis", label: "Blood in sputum (when coughing)" },
+    ]},
+    { id: "sym_breast", type: "checks", wide: true, group: "Breast", when: isF, items: [
+      { id: "breastLump", label: "A lump in the breast or armpit" },
+      { id: "nippleDischarge", label: "Blood-stained discharge from the nipple" },
+      { id: "breastChange", label: "Change in breast size or shape, puckered skin, or pulled-in nipple" },
+    ]},
+    { id: "sym_gyn", type: "checks", wide: true, group: "Bleeding and discharge", when: isF, items: [
+      { id: "bleedIntermenstrual", label: "Bleeding between periods" },
+      { id: "bleedPostcoital", label: "Bleeding after intercourse" },
+      { id: "bleedPostmeno", label: "Bleeding after periods have stopped (after menopause)" },
+      { id: "dischargeFoul", label: "Foul-smelling vaginal discharge" },
+    ]},
+    { id: "sym_gut", type: "checks", wide: true, group: "Stomach and bowel", items: [
+      { id: "bloodStool", label: "Blood in stool" },
+      { id: "blackStool", label: "Black, tar-like stools" },
+      { id: "bowelChange", label: "Loose motions or constipation that is new and has lasted 4+ weeks" },
+      { id: "anaemia", label: "Told you have anaemia (low haemoglobin) without a clear reason" },
+      { id: "dyspepsia", label: "Indigestion or upper stomach pain that keeps coming back" },
+      { id: "vomitBlood", label: "Vomiting blood" },
+    ]},
+    { id: "sym_body", type: "checks", wide: true, group: "Whole body", items: [
+      { id: "weightLoss", label: "Losing weight without trying" },
+      { id: "appetiteLoss", label: "Loss of appetite" },
+      { id: "feverNightSweats", label: "Fever for more than 2 weeks, or drenching night sweats" },
+      { id: "lumpElsewhere", label: "A lump in the neck, armpit, groin or elsewhere" },
+      { id: "haematuria", label: "Blood in urine" },
+      { id: "urineDifficulty", label: "Weak stream or difficulty passing urine", when: isM },
+      { id: "moleChange", label: "A mole or wart that is growing, changing colour or bleeding" },
+      { id: "jaundice", label: "Yellow eyes or skin (jaundice)" },
+      { id: "abdSwelling", label: "Swelling or a lump in the abdomen" },
+    ]},
+  ]},
+];
+
+// Flat index of every answerable field: id -> definition
+const FIELD = {};
+for (const s of SECTIONS) for (const f of s.fields) {
+  if (f.type === "checks") for (const c of f.items) FIELD[c.id] = { ...c, type: "check", when: c.when || f.when || s.when };
+  else FIELD[f.id] = { ...f, when: f.when || s.when };
+}
+const DEFAULTS = { smokeless: "never", smoking: "never", alcohol: "none", menopause: "no", lastCervicalScreen: "never" };
+
+/* ---------- 2. Rules engine: plain code, no AI. Every level below is decided here. ---------- */
+const TIERS = [
+  { label: "Low concern", short: "Low", line: "No warning signs and few risk factors. Keep healthy habits and know the warning signs." },
+  { label: "Routine screening", short: "Routine", line: "No warning signs. Get the free screening tests that are due for your age." },
+  { label: "Check-up due soon", short: "Within 1 month", line: "No warning signs, but your risk factors or overdue screening mean you should visit a health centre within a month." },
+  { label: "See a doctor within 2 weeks", short: "Within 2 weeks", line: "You reported a warning sign. Most such signs turn out not to be cancer, but each one must be examined by a doctor." },
+  { label: "Go to hospital today", short: "Today", line: "You reported a sign that needs emergency care." },
+];
+
+const bmiOf = d => (d.height > 0 && d.weight > 0) ? d.weight / ((d.height / 100) ** 2) : null;
+const packYears = d => (d.smoking === "current" || d.smoking === "past") ? ((+d.sticksPerDay || 0) / 20) * (+d.smokeYears || 0) : 0;
+
+function newModule(id, name, max, basis) { return { id, name, max, basis, points: 0, factors: [], flags: [], actions: [], tier: 0, scoreLabel: null }; }
+const add = (m, cond, pts, text) => { if (cond) { m.points += pts; m.factors.push({ text, pts }); } };
+const flag = (m, cond, text) => { if (cond) m.flags.push(text); };
+
+function assess(d) {
+  const age = +d.age || 0, female = isF(d), male = isM(d);
+  const bmi = bmiOf(d), py = packYears(d);
+  const smokeNow = d.smoking === "current", smokeEver = smokeNow || d.smoking === "past";
+  const chewNow = d.smokeless === "current";
+  const tobaccoNow = smokeNow || chewNow;
+  const QUIT = "Quitting tobacco is the biggest single step you can take. National Tobacco Quitline (free): 1800-11-2356.";
+  const mods = [];
+
+  // Oral cavity and throat — the commonest cancer in Indian men
+  const o = newModule("oral", "Mouth and throat", 10, [
+    ["Programme", "NP-NCD oral visual examination for all adults 30+"],
+    ["Warning signs", "CBAC Part B; NICE NG12 (hoarseness >3 weeks)"],
+    ["Risk points", "teaching heuristic from established risk factors, not a validated score"],
+  ]);
+  flag(o, d.mouthUlcer, "Mouth sore not healed in 2 weeks");
+  flag(o, d.mouthPatch, "White or red patch in the mouth (can be pre-cancer)");
+  flag(o, d.mouthOpening, "Difficulty opening the mouth (possible oral submucous fibrosis)");
+  flag(o, d.mouthGrowth, "Growth or lump in the mouth");
+  flag(o, d.hoarseness, "Hoarse voice for more than 3 weeks");
+  add(o, chewNow, 3, "Chews tobacco now");
+  add(o, d.smokeless === "past", 1, "Chewed tobacco in the past");
+  add(o, d.smokeless !== "never" && +d.smokelessYears >= 10, 1, "Chewed tobacco for 10+ years");
+  add(o, d.areca, 2, "Regular paan or supari (areca nut)");
+  add(o, smokeNow, 2, "Smokes now");
+  add(o, d.smoking === "past", 1, "Smoked in the past");
+  add(o, d.alcohol === "daily", 1, "Drinks alcohol daily");
+  add(o, d.alcohol === "daily" && tobaccoNow, 1, "Alcohol with tobacco multiplies the risk");
+  o.tier = o.flags.length ? 3 : o.points >= 4 ? 2 : age >= 30 ? 1 : 0;
+  if (o.tier === 3) o.actions.push("Show your mouth or throat to a doctor or dentist within 2 weeks. A patch or sore that does not heal needs examination and may need a small biopsy. Pre-cancer found now can be treated fully.");
+  if (o.tier === 2) o.actions.push("Get a free oral visual examination at your nearest Ayushman Arogya Mandir or PHC now, and every year while you use tobacco or areca nut.");
+  if (o.tier === 1) o.actions.push("Free oral visual examination every 5 years from age 30 under the national NCD programme.");
+  if (tobaccoNow) o.actions.push(QUIT);
+  if (o.points > 0) o.actions.push("Look inside your mouth with a mirror once a month for white or red patches and sores.");
+  mods.push(o);
+
+  // Lung, with the Indian TB overlap
+  const l = newModule("lung", "Lung (and TB check)", 7, [
+    ["Warning signs", "NICE NG12 (blood in sputum, cough with weight loss)"],
+    ["TB rule", "NTEP: cough of 2 weeks or more is presumptive TB"],
+    ["Scan eligibility", "USPSTF 2021: age 50–80 with 20+ pack-years (not part of India's national programme)"],
+    ["Risk points", "teaching heuristic"],
+  ]);
+  flag(l, d.haemoptysis, "Blood in sputum");
+  flag(l, d.cough2w && (d.weightLoss || d.feverNightSweats), "Long cough together with weight loss or fever");
+  add(l, py >= 20, 3, `Heavy smoking: about ${Math.round(py)} pack-years`);
+  add(l, py >= 10 && py < 20, 2, `Smoking: about ${Math.round(py)} pack-years`);
+  add(l, py > 0 && py < 10, 1, "Some smoking history");
+  add(l, smokeEver && py === 0, 1, "Smoking history (amount not given)");
+  add(l, d.biomass, 1, "Years of indoor smoke from cooking fuel");
+  add(l, d.occupational, 1, "Work exposure to asbestos, silica or mining dust");
+  add(l, d.fhLung, 1, "Lung cancer in a parent or sibling");
+  const ldct = age >= 50 && age <= 80 && py >= 20;
+  l.tier = l.flags.length ? 3 : (d.cough2w || ldct || l.points >= 3) ? 2 : l.points > 0 ? 1 : 0;
+  if (d.cough2w) l.actions.push("A cough of 2 weeks or more must be tested for TB first. The sputum test (NAAT) is free at any government health facility.");
+  if (l.tier === 3) l.actions.push("See a doctor within 2 weeks for a chest X-ray and examination.");
+  if (ldct) { l.scoreLabel = "Meets USPSTF scan criteria"; l.actions.push("Ask a chest physician whether a low-dose CT scan of the chest is right for you."); }
+  if (smokeNow) l.actions.push(QUIT);
+  if (d.biomass) l.actions.push("Use LPG (Ujjwala scheme) or cook in a well-ventilated space to reduce smoke exposure.");
+  mods.push(l);
+
+  if (female) {
+    // Breast — the commonest cancer in Indian women
+    const b = newModule("breast", "Breast", 10, [
+      ["Programme", "NP-NCD clinical breast examination, women 30–65, every 5 years"],
+      ["Warning signs", "CBAC Part B; NICE NG12"],
+      ["Risk points", "teaching heuristic from reproductive and family risk factors (the Gail model overestimates risk in Indian women, so it is not used)"],
+    ]);
+    flag(b, d.breastLump, "Lump in the breast or armpit");
+    flag(b, d.nippleDischarge, "Blood-stained nipple discharge");
+    flag(b, d.breastChange, "Change in breast shape, skin or nipple");
+    add(b, d.fhBreast, 2, "Breast or ovarian cancer in mother, sister or daughter");
+    add(b, age >= 50, 1, "Age 50 or above");
+    add(b, d.menarcheEarly, 1, "Periods started before 12");
+    add(b, d.menopauseLate, 1, "Late menopause");
+    add(b, d.firstChildLate || +d.children === 0 && d.children !== "" && d.children != null, 1, "First child after 30, or no children");
+    add(b, d.noBreastfeed, 1, "Never breastfed");
+    add(b, d.hrt, 1, "Hormone therapy after menopause");
+    add(b, bmi >= 25 && d.menopause === "yes", 1, `Overweight after menopause (BMI ${bmi ? bmi.toFixed(1) : ""})`);
+    add(b, d.alcohol === "daily", 1, "Daily alcohol");
+    b.tier = b.flags.length ? 3 : (d.fhBreast || b.points >= 4) ? 2 : (age >= 30 && age <= 65) ? 1 : 0;
+    if (b.tier === 3) b.actions.push("See a doctor within 2 weeks for a breast examination and ultrasound or mammogram. Most breast lumps are not cancer, but every lump must be checked.");
+    if (b.tier === 2) b.actions.push("Get a clinical breast examination now, and ask a doctor about mammography from age 40" + (d.fhBreast ? " (or earlier, because of your family history)." : "."));
+    if (b.tier === 1) b.actions.push("Free clinical breast examination every 5 years from age 30 at your health centre.");
+    b.actions.push("Know how your breasts normally look and feel, and report any change.");
+    mods.push(b);
+
+    // Cervix — second commonest in Indian women, and almost fully preventable
+    const c = newModule("cervix", "Cervix (mouth of the womb)", 10, [
+      ["Programme", "NP-NCD VIA screening, women 30–65, every 5 years"],
+      ["Warning signs", "CBAC Part B; NICE NG12 (post-menopausal bleeding)"],
+      ["HIV rule", "WHO 2021: women living with HIV screen from age 25, every 3 years"],
+      ["Risk points", "teaching heuristic"],
+    ]);
+    flag(c, d.bleedPostcoital, "Bleeding after intercourse");
+    flag(c, d.bleedIntermenstrual, "Bleeding between periods");
+    flag(c, d.bleedPostmeno, "Bleeding after menopause");
+    flag(c, d.dischargeFoul, "Foul-smelling vaginal discharge");
+    add(c, d.lastCervicalScreen === "never", 2, "Never had a cervical screening test");
+    add(c, d.lastCervicalScreen === "over5", 1, "Last cervical test more than 5 years ago");
+    add(c, d.earlyMarriage, 2, "Sexually active before 18");
+    add(c, +d.children >= 4, 1, "Four or more deliveries");
+    add(c, d.multiplePartners, 1, "More than one sexual partner");
+    add(c, d.hiv, 3, "Living with HIV");
+    add(c, smokeNow, 1, "Smokes");
+    add(c, d.ocp, 1, "Long-term birth-control pills");
+    const due = age >= 30 && age <= 65 && d.lastCervicalScreen !== "within5";
+    const hivDue = d.hiv && age >= 25;
+    c.tier = c.flags.length ? 3 : (due || hivDue) ? 2 : (age >= 30 && age <= 65) ? 1 : 0;
+    if (c.tier === 3) c.actions.push("See a doctor (gynaecologist) within 2 weeks for a speculum examination and screening test.");
+    if (c.tier === 2) c.actions.push(hivDue ? "Get a cervical screening test now and every 3 years, at your ART centre or health centre." : "Your cervical screening test is due. VIA is free at your nearest Ayushman Arogya Mandir or PHC; it takes a few minutes.");
+    if (c.tier === 1) c.actions.push("Keep up cervical screening every 5 years until age 65.");
+    c.actions.push("HPV vaccination of girls aged 9–14 prevents most cervical cancers. Ask about it for your daughters.");
+    mods.push(c);
+  }
+
+  // Colorectal — the only module using a validated Asian score (APCS)
+  const k = newModule("bowel", "Bowel (colon and rectum)", 7, [
+    ["Validated score", "Asia-Pacific Colorectal Screening (APCS) score, Yeoh et al., Gut 2011"],
+    ["Warning signs", "NICE NG12"],
+    ["Note", "India has no national bowel cancer screening programme"],
+  ]);
+  flag(k, d.bloodStool, "Blood in stool");
+  flag(k, d.blackStool, "Black, tar-like stools");
+  flag(k, d.bowelChange, "Change in bowel habit for 4+ weeks");
+  flag(k, d.anaemia, "Unexplained anaemia");
+  add(k, age >= 50 && age < 70, 2, "APCS: age 50–69");
+  add(k, age >= 70, 3, "APCS: age 70+");
+  add(k, male, 1, "APCS: male");
+  add(k, d.fhColorectal, 2, "APCS: bowel cancer in a first-degree relative");
+  add(k, smokeEver, 1, "APCS: current or past smoker");
+  k.scoreLabel = `APCS ${k.points}/7: ${k.points >= 4 ? "high" : k.points >= 2 ? "moderate" : "average"} risk`;
+  k.tier = k.flags.length ? 3 : k.points >= 4 ? 2 : k.points >= 2 ? 1 : 0;
+  if (k.tier === 3) k.actions.push("See a doctor within 2 weeks. Piles and infections are common causes, but bleeding or a lasting change in bowel habit must be examined, especially after 40.");
+  if (k.tier === 2) k.actions.push("High risk on the APCS score: ask a doctor whether you need a colonoscopy.");
+  if (k.tier === 1) k.actions.push("Moderate risk on the APCS score: ask a doctor about a stool test for hidden blood (FIT).");
+  if (d.lowVeg || d.inactive) k.actions.push("Daily vegetables, fruit and whole grains, and 30 minutes of walking, lower bowel cancer risk.");
+  mods.push(k);
+
+  // Food pipe and stomach
+  const g = newModule("upper", "Food pipe and stomach", 5, [
+    ["Warning signs", "NICE NG12 (difficulty swallowing at any age; age 55+ with weight loss and indigestion)"],
+    ["Region", "higher oesophageal and stomach cancer rates in North-East India (NCRP)"],
+    ["Risk points", "teaching heuristic"],
+  ]);
+  flag(g, d.dysphagia, "Difficulty swallowing");
+  flag(g, age >= 55 && d.weightLoss && d.dyspepsia, "Age 55+ with indigestion and weight loss");
+  flag(g, d.dyspepsia && (d.blackStool || d.anaemia), "Indigestion with black stools or anaemia");
+  add(g, smokeNow, 1, "Smokes");
+  add(g, chewNow, 1, "Chews tobacco");
+  add(g, d.alcohol === "daily", 1, "Daily alcohol");
+  add(g, d.region === "northeast", 2, "Lives in North-East India");
+  g.tier = d.vomitBlood ? 4 : g.flags.length ? 3 : (d.dyspepsia && age >= 55) ? 2 : g.points >= 2 ? 1 : 0;
+  if (d.vomitBlood) { g.flags.unshift("Vomiting blood"); g.actions.push("Go to the nearest hospital emergency today."); }
+  else if (g.tier === 3) g.actions.push("See a doctor within 2 weeks; you may need an endoscopy.");
+  if (g.tier === 2) g.actions.push("Recurring indigestion after 55 should be checked by a doctor within a month.");
+  if (g.tier <= 1 && g.points > 0) g.actions.push("Avoid very hot tea or drinks, tobacco and alcohol.");
+  mods.push(g);
+
+  // Liver and gallbladder — Indian context: hepatitis B, alcohol, and the Gangetic gallbladder belt
+  const h = newModule("liver", "Liver and gallbladder", 6, [
+    ["Warning signs", "NICE NG12 (jaundice, abdominal mass)"],
+    ["Region", "gallbladder cancer is among the commonest cancers in women of the Gangetic plains (NCRP)"],
+    ["Risk points", "teaching heuristic"],
+  ]);
+  flag(h, d.jaundice, "Yellow eyes or skin");
+  flag(h, d.abdSwelling, "Swelling or lump in the abdomen");
+  add(h, d.hepBC, 2, "Hepatitis B or C");
+  add(h, d.alcohol === "daily", 2, "Daily alcohol");
+  add(h, d.gallstones, 1, "Gallstones");
+  const gangetic = d.region === "north" || d.region === "east";
+  add(h, d.gallstones && gangetic, 1, "Gallstones in a high-risk region");
+  h.tier = h.flags.length ? 3 : (d.hepBC || d.alcohol === "daily" || (d.gallstones && gangetic)) ? 2 : h.points > 0 ? 1 : 0;
+  if (h.tier === 3) h.actions.push("See a doctor within 2 weeks for liver tests and an abdominal ultrasound.");
+  if (d.hepBC) h.actions.push("Hepatitis B or C needs regular follow-up and treatment, often free under the National Viral Hepatitis Control Programme. Family members should get the hepatitis B vaccine.");
+  if (d.alcohol === "daily") h.actions.push("Daily alcohol damages the liver. Ask a doctor for a liver check-up and help to cut down.");
+  if (d.gallstones && gangetic) h.actions.push("Discuss your gallstones with a surgeon; in this region they are usually removed even with mild symptoms.");
+  mods.push(h);
+
+  // Other warning signs (Park's danger signals / CAUTION)
+  const w = newModule("general", "Other warning signs", 0, [
+    ["Warning signs", "Park's danger signals of cancer; NICE NG12 (unexplained weight loss, visible blood in urine at 45+)"],
+  ]);
+  flag(w, d.weightLoss, "Losing weight without trying");
+  flag(w, d.lumpElsewhere, "Lump in the neck, armpit, groin or elsewhere");
+  flag(w, d.haematuria, "Blood in urine");
+  flag(w, d.moleChange, "Changing or bleeding mole");
+  const soft = [];
+  if (d.feverNightSweats) soft.push("Fever over 2 weeks or night sweats");
+  if (d.appetiteLoss) soft.push("Loss of appetite");
+  if (d.urineDifficulty && male && age >= 50) soft.push("Difficulty passing urine at 50+");
+  w.tier = w.flags.length ? 3 : soft.length ? 2 : 0;
+  for (const s of soft) w.factors.push({ text: s, pts: null });
+  if (w.tier === 3) w.actions.push("See a doctor within 2 weeks and describe each of these signs.");
+  if (d.feverNightSweats) w.actions.push("Long fever or night sweats: get tested for TB at a government health facility (free).");
+  if (d.urineDifficulty && male && age >= 50) w.actions.push("See a doctor about your urine flow; ask whether a prostate examination or PSA test is needed.");
+  if (w.tier > 0 || w.factors.length) mods.push(w);
+
+  const overall = Math.max(...mods.map(m => m.tier));
+  const fired = mods.reduce((n, m) => n + m.flags.length + m.factors.length, 0);
+  return { mods, overall, fired, bmi, py };
+}
+
+/* ---------- 3. State, form rendering and binding ---------- */
+let data = { ...DEFAULTS };
+let aiFilled = new Set();
+let trace = { perceive: null, act: null };
+let activeCase = null;
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function controlHTML(f) {
+  const id = "f-" + f.id;
+  if (f.type === "number") return `<div class="field" data-f="${f.id}"><label for="${id}">${esc(f.label)}</label><input type="number" inputmode="numeric" id="${id}" min="${f.min}" max="${f.max}"></div>`;
+  if (f.type === "select") return `<div class="field" data-f="${f.id}"><label for="${id}">${esc(f.label)}</label><select id="${id}">${f.opts.map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join("")}</select></div>`;
+  if (f.type === "choice") return `<div class="field${f.wide ? " wide" : ""}" data-f="${f.id}" role="radiogroup" aria-label="${esc(f.label)}"><span class="lbl">${esc(f.label)}</span><div class="seg">${f.opts.map(([v, t]) => `<label><input type="radio" name="${f.id}" id="${id}-${v}" value="${v}">${esc(t)}</label>`).join("")}</div></div>`;
+  if (f.type === "checks") return `<div class="field wide" data-group="${f.id}">${f.group ? `<div class="group-h">${esc(f.group)}</div>` : ""}<div class="checks">${f.items.map(c => `<label class="check" data-f="${c.id}"><input type="checkbox" id="f-${c.id}"><span>${esc(c.label)}</span></label>`).join("")}</div></div>`;
+}
+
+function buildForm() {
+  $("#form").innerHTML = SECTIONS.map((s, i) => `<div class="panel" data-sec="${i}"><h2>${esc(s.title)}</h2><div class="fields">${s.fields.map(controlHTML).join("")}</div></div>`).join("");
+  $("#form").addEventListener("input", onInput);
+  $("#form").addEventListener("change", onInput);
+}
+
+function onInput(e) {
+  const el = e.target;
+  let id, val;
+  if (el.type === "radio") { id = el.name; val = el.value; }
+  else if (el.type === "checkbox") { id = el.id.slice(2); val = el.checked; }
+  else if (el.type === "number") { id = el.id.slice(2); val = el.value === "" ? "" : +el.value; }
+  else { id = el.id.slice(2); val = el.value; }
+  if (!(id in FIELD)) return;
+  data[id] = val;
+  aiFilled.delete(id);
+  if (activeCase) { activeCase = null; renderCases(); }
+  syncForm(); render();
+}
+
+function syncForm() {
+  for (const [id, f] of Object.entries(FIELD)) {
+    const v = data[id];
+    if (f.type === "check") $("#f-" + id).checked = !!v;
+    else if (f.type === "choice") for (const [ov] of f.opts) $(`#f-${id}-${ov}`).checked = v === ov;
+    else { const el = $("#f-" + id); if (document.activeElement !== el) el.value = v ?? ""; }
+    const wrap = document.querySelector(`[data-f="${id}"]`);
+    wrap.hidden = f.when ? !f.when(data) : false;
+    wrap.classList.toggle("ai-filled", aiFilled.has(id));
+  }
+  SECTIONS.forEach((s, i) => { document.querySelector(`[data-sec="${i}"]`).hidden = s.when ? !s.when(data) : false; });
+  document.querySelectorAll("[data-group]").forEach(g => { g.hidden = [...g.querySelectorAll("[data-f]")].every(x => x.hidden); });
+}
+
+/* ---------- 4. Results rendering ---------- */
+const pill = t => `<span class="pill tier${t}">${TIERS[t].short}</span>`;
+
+function render() {
+  const out = $("#results"), chip = $("#chip");
+  if (!data.age || !data.sex) {
+    out.innerHTML = `<div class="placeholder">Enter your age and sex to see your result.<br>Or load an example case above.</div>`;
+    chip.className = "result-chip tier1"; chip.textContent = "Result: needs age and sex";
+    return;
+  }
+  const r = assess(data);
+  const top = r.mods.filter(m => m.tier === r.overall);
+  const why = r.overall >= 3 ? top.map(m => `<b>${esc(m.name)}:</b> ${esc(m.flags.join("; "))}`).join("<br>")
+            : r.overall === 2 ? top.map(m => `<b>${esc(m.name)}</b>`).join(", ")
+            : "";
+  chip.className = `result-chip tier${r.overall}`; chip.textContent = TIERS[r.overall].label;
+
+  const sorted = [...r.mods].sort((a, b) => b.tier - a.tier || b.points / (b.max || 1) - a.points / (a.max || 1));
+  const modHTML = sorted.map(m => {
+    const pct = m.max ? Math.min(100, Math.round(100 * m.points / m.max)) : (m.tier >= 3 ? 100 : m.tier * 30);
+    const meterText = m.scoreLabel || (m.max ? `${m.points} of ${m.max} risk points` : `${m.flags.length} warning sign${m.flags.length === 1 ? "" : "s"}`);
+    return `<details class="mod"${m.tier >= 2 ? " open" : ""}>
+      <summary><span class="mod-name">${esc(m.name)}</span>${pill(m.tier)}
+        <span class="meter"><span class="bar"><i style="width:${pct}%;background:var(--t${Math.min(m.tier, 3)})"></i></span>${esc(meterText)}</span></summary>
+      <div class="mod-body">
+        ${m.flags.length ? `<div><h4>Warning signs</h4><ul class="flags">${m.flags.map(f => `<li>${esc(f)}</li>`).join("")}</ul></div>` : ""}
+        ${m.factors.length ? `<div><h4>Risk factors found</h4><div class="chips">${m.factors.map(f => `<span class="chip">${esc(f.text)}${f.pts != null ? ` <b>+${f.pts}</b>` : ""}</span>`).join("")}</div></div>` : ""}
+        ${m.actions.length ? `<div><h4>What to do</h4><ul>${m.actions.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>` : `<div class="note">Nothing of concern found in your answers.</div>`}
+        <div class="basis">${m.basis.map(([k, v]) => `<span><b>${esc(k)}:</b> ${esc(v)}</span>`).join("")}</div>
+      </div></details>`;
+  }).join("");
+
+  const age = +data.age, f = isF(data);
+  const screens = [];
+  if (age >= 30) {
+    screens.push("Oral visual examination, every 5 years");
+    if (f && age <= 65) screens.push("Clinical breast examination, every 5 years", "Cervical screening by VIA, every 5 years");
+    screens.push("Blood pressure and blood sugar check");
+  }
+
+  const steps = [
+    { tag: "ai", name: "Perceive", done: !!trace.perceive, d: trace.perceive || "Questionnaire filled by hand. (Use \"Read my story\" to let Claude fill it from free text.)" },
+    { tag: "human", name: "Confirm", done: true, d: aiFilled.size ? `${aiFilled.size} answers filled by Claude are highlighted in the form, waiting for you to check them.` : "You can see and change every answer the decision uses." },
+    { tag: "code", name: "Reason", done: true, d: `Rules engine checked ${r.mods.length} cancer areas and matched ${r.fired} rules. No AI is used in this step, so the same answers always give the same result.` },
+    { tag: "ai", name: "Act", done: !!trace.act, d: trace.act || "Advice is fixed protocol text. Claude can explain it in your language, but cannot change any level." },
+  ];
+  const tagName = { ai: "Claude", human: "You", code: "Code" };
+
+  out.innerHTML = `
+    <div class="banner tier${r.overall}">
+      <span class="eyebrow">Overall result</span>
+      <h2>${TIERS[r.overall].label}</h2>
+      <p>${TIERS[r.overall].line}</p>
+      ${why ? `<p class="why">${why}</p>` : ""}
+    </div>
+    <div class="panel">
+      <h2>How the agent decided</h2>
+      <ol class="trace">${steps.map((s, i) => `<li class="${s.done ? "done" : ""}"><span class="n">${i + 1}</span><div><div class="t">${s.name} <span class="tag ${s.tag}">${tagName[s.tag]}</span></div><div class="d">${esc(s.d)}</div></div></li>`).join("")}</ol>
+    </div>
+    <div class="mods">${modHTML}</div>
+    ${screens.length ? `<div class="panel"><h2>Free screening due for you</h2><p class="sub">Under the national NCD programme, at your Ayushman Arogya Mandir, PHC or government hospital.</p><ul class="screen-list">${screens.map(s => `<li>${esc(s)}</li>`).join("")}</ul></div>` : ""}
+    <div class="panel" id="explain-panel">
+      <h2>Explain my result <span class="tag ai">Claude</span></h2>
+      <p class="sub">Claude rewrites the result above in simple words. It receives only the levels and advice, not your story, and is told not to change them.</p>
+      <div class="row">
+        <select id="lang" aria-label="Language">${["English", "Kannada", "Hindi", "Telugu", "Tamil", "Marathi", "Malayalam", "Bengali"].map(l => `<option${l === explainLang ? " selected" : ""}>${l}</option>`).join("")}</select>
+        <button class="btn ai" id="explain" type="button">Explain my result</button>
+        <button class="btn" id="stop" type="button" hidden>Stop</button>
+        <span class="status" id="explain-status"></span>
+      </div>
+      <div class="explain-out" id="explain-out"${explainLang === "Kannada" ? ' lang="kn"' : ""}>${esc(explainText)}</div>
+    </div>
+    <p class="note"><b>Why no percentage?</b> No calculator that turns self-reported answers into a percentage chance of cancer has been validated in Indian adults. A number would look more precise than the evidence allows, so the agent reports levels of concern tied to what you should do next.</p>`;
+  lastResult = r;
+  bindExplain();
+}
+
+/* ---------- 5. Claude: read the story (Perceive) and explain the result (Act) ---------- */
+let sample = null, lastResult = null, explainLang = "English", explainText = "", explainCtl = null;
+
+function schemaForClaude() {
+  return Object.entries(FIELD).map(([id, f]) => {
+    if (f.type === "check") return `- ${id}: true if clearly stated. (${f.label})`;
+    if (f.type === "number") return `- ${id}: number ${f.min}-${f.max}. (${f.label})`;
+    return `- ${id}: one of ${f.opts.filter(o => o[0]).map(o => `"${o[0]}"`).join(", ")}. (${f.label})`;
+  }).join("\n");
+}
+
+function coerce(f, v) {
+  if (f.type === "check") return v === true ? true : undefined;
+  if (f.type === "number") { const n = Number(v); return Number.isFinite(n) && n >= f.min && n <= f.max ? n : undefined; }
+  return f.opts.some(o => o[0] && o[0] === v) ? v : undefined;
+}
+
+const errCopy = e => ({
+  not_granted: "Claude was not allowed for this page. The questionnaire still works.",
+  sampling_disabled: "Claude is not available on this account. The questionnaire still works.",
+  rate_limited: "Too many requests just now. Wait a minute and try again.",
+  session_expired: "Please sign in to Claude again.",
+  refused: "Claude declined this text. Try rephrasing it.",
+  invalid_json: "Claude's answer could not be read. Press the button again.",
+}[e?.code] || "Claude could not answer just now. Try again in a moment.");
+
+async function readStory() {
+  const text = $("#story").value.trim();
+  const status = $("#story-status"), btn = $("#read-story");
+  if (!text) { status.textContent = "Write a few sentences first."; return; }
+  btn.disabled = true; status.className = "status"; status.textContent = "Claude is reading…";
+  const prompt = `You are the intake step of a cancer early-detection checklist used by ordinary people in India.
+Read the person's description below. It may be in English, Kannada, Hindi or a mix, and may use local words (gutka, khaini, beedi, paan, supari, mawa).
+Extract ONLY facts the person clearly states. Never guess or infer a diagnosis. Leave out anything not mentioned.
+
+Reply with only JSON in this shape:
+{"fields": {"<id>": <value>, ...}, "missing": ["up to 3 short follow-up questions, in the person's language, about important things not mentioned (for example age, sex, tobacco use, or for women their last cervical test)"], "language": "English" | "Kannada" | "Hindi" | other language name}
+
+Allowed ids and values:
+${schemaForClaude()}
+
+Description:
+"""
+${text.slice(0, 4000)}
+"""`;
+  try {
+    const res = await sample.json(prompt, { modelTier: "quick" });
+    const filled = [];
+    for (const [k, v] of Object.entries(res?.fields || {})) {
+      const f = FIELD[k]; if (!f) continue;
+      const val = coerce(f, v); if (val === undefined) continue;
+      data[k] = val; aiFilled.add(k); filled.push(k);
+    }
+    activeCase = null; renderCases();
+    const qs = Array.isArray(res?.missing) ? res.missing.slice(0, 3).map(String) : [];
+    $("#followups").innerHTML = qs.map(q => `<li>${esc(q)}</li>`).join("");
+    if (typeof res?.language === "string" && ["Kannada", "Hindi", "Telugu", "Tamil", "Marathi", "Malayalam", "Bengali"].includes(res.language)) explainLang = res.language;
+    trace.perceive = `Claude read your ${res?.language || ""} story and filled ${filled.length} answer${filled.length === 1 ? "" : "s"}${qs.length ? `, and asked ${qs.length} follow-up question${qs.length === 1 ? "" : "s"}` : ""}.`;
+    status.textContent = filled.length ? `Filled ${filled.length} answers, highlighted in purple. Please check them${qs.length ? " and answer the questions below" : ""}.` : "No answers could be filled from that text. Try adding age, sex, habits and symptoms.";
+    syncForm(); render();
+  } catch (e) {
+    status.className = "status err"; status.textContent = errCopy(e);
+    if (e?.code === "not_granted" || e?.code === "sampling_disabled") disableAI();
+  } finally { btn.disabled = false; }
+}
+
+function bindExplain() {
+  const btn = $("#explain"); if (!btn) return;
+  if (!sample) { btn.disabled = true; $("#explain-status").textContent = aiNote; }
+  $("#lang").onchange = e => { explainLang = e.target.value; };
+  btn.onclick = explain;
+  $("#stop").onclick = () => explainCtl?.abort();
+}
+
+async function explain() {
+  if (!sample || !lastResult) return;
+  const r = lastResult, lang = $("#lang").value;
+  explainLang = lang;
+  const summary = {
+    overall_level: TIERS[r.overall].label,
+    age: +data.age, sex: data.sex,
+    areas: r.mods.filter(m => m.tier >= 1).map(m => ({ area: m.name, level: TIERS[m.tier].label, warning_signs: m.flags, risk_factors: m.factors.map(f => f.text), actions: m.actions })),
+  };
+  const prompt = `You are explaining the result of a cancer early-detection checklist to an ordinary person in India.
+A fixed rules engine (not you) has already decided every level of concern. Your only job is to explain it kindly and clearly in ${lang}, written in ${lang} script.
+
+Rules:
+- Simple everyday words, as you would speak to someone with school-level education. Second person ("you").
+- Start with the overall level exactly as given, translated.
+- Never change, raise or lower any level. Never give a percentage. Never say they have or do not have cancer.
+- Give the 2 or 3 most important next steps from the actions, including where to go. Government health centres (Ayushman Arogya Mandir, PHC) screen for free.
+- If there is a warning sign, say calmly that most such signs are not cancer but must be checked soon.
+- Keep the Quitline number exactly if it appears.
+- 120 to 180 words. Short paragraphs. No headings, no bullet symbols, no markdown.
+- End with one sentence saying this is not a diagnosis and only a doctor's examination can tell.
+
+Result:
+${JSON.stringify(summary)}`;
+  const btn = $("#explain"), stop = $("#stop"), status = $("#explain-status"), out = $("#explain-out");
+  explainCtl = new AbortController();
+  btn.disabled = true; stop.hidden = false; status.className = "status"; status.textContent = "Thinking…";
+  out.lang = lang === "Kannada" ? "kn" : ""; out.textContent = "";
+  try {
+    const res = await sample(prompt, { modelTier: "quick", signal: explainCtl.signal, onText: ({ text }) => { status.textContent = ""; out.textContent = explainText = text.replace(/\*\*/g, ""); } });
+    explainText = res.text.replace(/\*\*/g, ""); out.textContent = explainText;
+    trace.act = `Claude explained the result in ${lang}. The levels and advice it explained came from the rules engine.`;
+    const done = document.querySelectorAll(".trace li")[3];
+    if (done) { done.classList.add("done"); done.querySelector(".d").textContent = trace.act; }
+    if (res.truncated) status.textContent = "The explanation was cut short.";
+  } catch (e) {
+    out.textContent = explainText = (e?.text || "").replace(/\*\*/g, "");
+    if (e?.code !== "cancelled") { status.className = "status err"; status.textContent = errCopy(e); }
+    else status.textContent = "";
+    if (e?.code === "not_granted" || e?.code === "sampling_disabled") disableAI();
+  } finally { btn.disabled = !sample; stop.hidden = true; }
+}
+
+let aiNote = "Connecting to Claude…";
+function disableAI() {
+  sample = null;
+  aiNote = "Claude is not available here, so the free-text and explanation features are off. The questionnaire and rules engine work fully.";
+  $("#read-story").disabled = true;
+  $("#story-status").textContent = aiNote;
+  const b = $("#explain"); if (b) { b.disabled = true; $("#explain-status").textContent = aiNote; }
+}
+
+/* ---------- 6. Example cases (invented, for teaching) ---------- */
+const CASES = [
+  { key: "A", label: "A · Man, 52, chews gutka, white patch", d: { age: 52, sex: "male", region: "south", height: 166, weight: 58, smokeless: "current", smokelessYears: 20, areca: true, alcohol: "occasional", mouthPatch: true } },
+  { key: "B", label: "B · Woman, 46, bleeding after intercourse", d: { age: 46, sex: "female", region: "north", height: 152, weight: 61, children: 4, earlyMarriage: true, lastCervicalScreen: "never", biomass: true, bleedPostcoital: true } },
+  { key: "C", label: "C · Man, 61, bidi smoker, long cough", d: { age: 61, sex: "male", region: "east", height: 162, weight: 50, smoking: "current", sticksPerDay: 25, smokeYears: 40, biomass: true, cough2w: true, weightLoss: true } },
+  { key: "D", label: "D · Woman, 42, mother had breast cancer", d: { age: 42, sex: "female", region: "west", height: 158, weight: 68, children: 1, firstChildLate: true, fhBreast: true, lastCervicalScreen: "over5", inactive: true } },
+  { key: "E", label: "E · Woman, 34, no symptoms", d: { age: 34, sex: "female", region: "south", height: 155, weight: 54, children: 2, lastCervicalScreen: "within5" } },
+];
+
+function renderCases() {
+  const box = $("#cases");
+  box.innerHTML = `<b>Example cases</b>` + CASES.map(c => `<button class="btn" type="button" data-case="${c.key}" aria-pressed="${activeCase === c.key}">${esc(c.label)}</button>`).join("")
+    + (activeCase ? `<span class="example-note">Showing invented example case ${activeCase}. Change any answer or clear the form to try your own.</span>` : "");
+}
+
+function loadCase(key) {
+  const c = CASES.find(x => x.key === key); if (!c) return;
+  data = { ...DEFAULTS, ...c.d }; aiFilled = new Set(); trace = { perceive: null, act: null };
+  explainText = ""; activeCase = key; $("#followups").innerHTML = ""; $("#story-status").textContent = "";
+  renderCases(); syncForm(); render();
+}
+
+/* ---------- 7. Boot ---------- */
+buildForm();
+$("#cases").addEventListener("click", e => { const b = e.target.closest("[data-case]"); if (b) loadCase(b.dataset.case); });
+$("#clear").addEventListener("click", () => {
+  data = { ...DEFAULTS }; aiFilled = new Set(); trace = { perceive: null, act: null }; explainText = ""; activeCase = null;
+  $("#story").value = ""; $("#followups").innerHTML = ""; $("#story-status").textContent = "";
+  renderCases(); syncForm(); render(); window.scrollTo({ top: 0 });
+});
+$("#chip").addEventListener("click", () => $("#results").scrollIntoView({ behavior: "smooth", block: "start" }));
+$("#read-story").addEventListener("click", readStory);
+loadCase("A");
+
+(async () => {
+  try { sample = typeof window.claude?.use === "function" ? await window.claude.use("sample") : null; } catch { sample = null; }
+  if (!sample) { disableAI(); return; }
+  aiNote = ""; $("#read-story").disabled = false; render();
+})();
+$("#read-story").disabled = true;
+</script>
